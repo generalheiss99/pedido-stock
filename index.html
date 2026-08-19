@@ -1,0 +1,2025 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Generador de Pedido Semanal</title>
+  
+  <!-- SheetJS para Excel (.xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- HTML5 QR Code / Barcode Scanner -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --card-alt: #f1f5f9;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --star: #eab308;
+    }
+
+    [data-theme="dark"] {
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-alt: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --star: #fde047;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 780px;
+      background: var(--card);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      position: relative;
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .app-header h1 {
+      font-size: 20px;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .theme-toggle, .scanner-toggle {
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 18px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: 1px solid transparent;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-radius: 8px;
+      white-space: nowrap;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .card-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      padding: 9px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.85; }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-secondary { background: var(--text-muted); color: white; }
+    .btn-outline { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--card-alt); }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--text);
+      font-size: 14px;
+      margin-top: 4px;
+      margin-bottom: 8px;
+    }
+    input:focus, select:focus { outline: 2px solid var(--primary); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      margin-bottom: 4px;
+    }
+
+    .badge-room {
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .color-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .star-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #94a3b8;
+      padding: 2px 4px;
+      line-height: 1;
+    }
+    .star-btn.active { color: var(--star); }
+
+    .color-palette {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin: 4px 0 8px 0;
+      flex-wrap: wrap;
+    }
+
+    .color-swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid var(--card);
+      outline: 1px solid var(--border);
+    }
+    .color-swatch.selected { outline: 2px solid var(--primary); }
+
+    .product-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 420px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .product-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .product-item:last-child { border-bottom: none; }
+
+    .product-edit-form {
+      padding: 14px;
+      background: var(--card-alt);
+      border-bottom: 1px solid var(--border);
+      border-left: 4px solid var(--primary);
+    }
+
+    .item-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-icon {
+      padding: 5px 8px;
+      font-size: 12px;
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .cat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--card-alt);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      margin: 2px 4px 4px 0;
+    }
+
+    .progress-bar-bg {
+      background: var(--card-alt);
+      border-radius: 4px;
+      height: 8px;
+      width: 100%;
+      margin: 12px 0;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      background: var(--primary);
+      height: 100%;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th { background: var(--card-alt); }
+
+    /* Resultados del buscador rápido */
+    .live-search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      margin-top: 4px;
+    }
+
+    .search-result-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+      transition: background 0.15s;
+    }
+    .search-result-item:hover { background: var(--card-alt); }
+    .search-result-item:last-child { border-bottom: none; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-content {
+      background: var(--card);
+      border-radius: 12px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+
+    .shortcuts-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      .container { padding: 14px; }
+      .shortcuts-hint { display: none; }
+      .app-header h1 { font-size: 17px; }
+      .tab-btn { padding: 7px 10px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="app-header">
+    <h1>📦 Pedido Semanal</h1>
+    <div class="header-actions">
+      <button class="scanner-toggle" onclick="abrirEscanerCamara()" title="Escanear Código de Barras">📷 Escanear</button>
+      <button class="theme-toggle" id="btnThemeToggle" onclick="alternarTema()" title="Cambiar tema">🌙</button>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="tab-btn active" id="tabChecklistBtn" onclick="cambiarPestana('checklist')">📋 Revisión / Pedido</button>
+    <button class="tab-btn" id="tabCatalogoBtn" onclick="cambiarPestana('catalogo')">🗂️ Catálogo</button>
+    <button class="tab-btn" id="tabHistorialBtn" onclick="cambiarPestana('historial')">📜 Historial</button>
+    <button class="tab-btn" id="tabEstadisticasBtn" onclick="cambiarPestana('estadisticas')">📊 Estadísticas</button>
+  </div>
+
+  <!-- PESTAÑA 1: REVISIÓN / PEDIDO -->
+  <div id="vistaChecklist">
+    <!-- PANTALLA INICIAL DE REVISIÓN -->
+    <div id="pantallaInicio">
+      <div class="card-box">
+        <h2 style="margin-top: 0;">Iniciar Control de Stock</h2>
+        <p style="color: var(--text-muted); font-size: 14px;">Elegí qué productos querés chequear hoy:</p>
+        
+        <label style="font-size: 13px; font-weight: 600;">Alcance de la revisión:</label>
+        <select id="filtroAlcanceRevision" style="font-size: 15px; padding: 10px;"></select>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+          <button class="btn btn-primary" style="padding: 14px; font-size: 15px;" onclick="iniciarRevision()">
+            🚀 Iniciar Revisión Paso a Paso
+          </button>
+          <button class="btn btn-outline" style="padding: 12px; font-size: 14px;" onclick="finalizarRevisionDirecta()">
+            ⚡ Ir Directo al Resumen / Carga Rápida
+          </button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center;">
+        <div class="card-box" style="padding: 10px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--primary);" id="statTotalItems">0</div>
+          <div style="font-size: 11px; color: var(--text-muted);">En Catálogo</div>
+        </div>
+        <div class="card-box" style="padding: 10px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--star);" id="statTotalFavs">0</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Favoritos ⭐</div>
+        </div>
+        <div class="card-box" style="padding: 10px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--success);" id="statTotalPedidos">0</div>
+          <div style="font-size: 11px; color: var(--text-muted);">En Historial</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANTALLA PASO A PASO -->
+    <div id="pantallaRevision" style="display:none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-muted);">
+        <span id="contadorProgreso">Producto 1 de X</span>
+        <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="finalizarRevision()">🏁 Finalizar y Ver Resumen</button>
+      </div>
+      
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="barraProgreso"></div>
+      </div>
+
+      <div class="card-box" style="position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 6px;">
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span class="badge" id="catProductoActual">Categoría</span>
+            <span class="badge badge-room" id="habProductoActual">📍 Habitación</span>
+          </div>
+          <button class="star-btn" id="starProductoActual" onclick="toggleFavoritoActual()" title="Marcar como favorito">⭐</button>
+        </div>
+
+        <h2 id="nombreProductoActual" style="margin: 6px 0 6px 0;">Nombre Producto</h2>
+        
+        <div style="display: flex; gap: 12px; color: var(--text-muted); font-size: 13px; margin-bottom: 15px; flex-wrap: wrap;">
+          <span>Cant. habitual: <strong id="cantSugeridaActual" style="color: var(--text);">0</strong></span>
+          <span id="unidadProductoActual">Unidad: Unidades</span>
+        </div>
+
+        <!-- MODO FALTA STOCK / INGRESO DE CANTIDAD -->
+        <div id="bloqueCantidad" style="display:none; background: var(--card-alt); padding: 14px; border-radius: 8px; margin-bottom: 15px;">
+          <label for="inputCantidad"><strong>Cantidad a pedir:</strong></label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="number" id="inputCantidad" min="1" step="1" style="font-size: 16px; font-weight: bold; flex: 1;">
+            <span id="labelUnidadInput" style="font-size: 13px; color: var(--text-muted); white-space: nowrap;"></span>
+          </div>
+
+          <!-- CALCULADORA DE REPOSICIÓN -->
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">📐 Calculadora rápida de reposición:</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div>
+                <span style="font-size: 11px;">Tengo ahora:</span>
+                <input type="number" id="calcStockActual" placeholder="Ej. 2" min="0" oninput="calcularReposicion()" style="margin: 2px 0;">
+              </div>
+              <div>
+                <span style="font-size: 11px;">Stock ideal:</span>
+                <input type="number" id="calcStockIdeal" placeholder="Ej. 10" min="0" oninput="calcularReposicion()" style="margin: 2px 0;">
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-danger" style="width: 100%; margin-top: 10px; padding: 11px;" onclick="confirmarFaltaStock()">Confirmar y Agregar al Pedido</button>
+        </div>
+
+        <div class="btn-group" id="botonesPrincipales">
+          <button class="btn btn-success" style="flex: 1; padding: 14px; font-size: 15px;" onclick="marcarConStock()">✓ Tengo Stock</button>
+          <button class="btn btn-danger" style="flex: 1; padding: 14px; font-size: 15px;" onclick="mostrarInputCantidad()">✗ Falta Stock</button>
+        </div>
+
+        <div class="shortcuts-hint">
+          💡 <strong>Atajos de teclado:</strong> [S] o [Espacio] = Tengo stock · [N] o [Enter] = Falta stock · [←] = Volver · [F] = Finalizar
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn btn-secondary" style="font-size: 13px;" onclick="productoAnterior()" id="btnAnterior">← Volver al anterior</button>
+        <button class="btn btn-outline" style="font-size: 13px;" onclick="finalizarRevision()">Ver Resumen (<span id="cantEnPedidoBadge">0</span>)</button>
+      </div>
+    </div>
+
+    <!-- PANTALLA RESUMEN / EXPORTACIÓN -->
+    <div id="pantallaResumen" style="display:none;">
+      <h2>Resumen del Pedido</h2>
+      <p style="color: var(--text-muted); font-size: 13px; margin: 0 0 12px 0;">Revisá las cantidades antes de exportar o enviar por WhatsApp:</p>
+
+      <!-- BUSCADOR INTERACTIVO Y CARGA RÁPIDA -->
+      <div class="card-box" style="padding: 14px; margin-bottom: 14px; background: var(--card-alt); position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <label style="font-size: 13px; font-weight: 700;">⚡ Buscador y Carga Rápida de Productos:</label>
+          <select id="filtroHabitacionResumen" onchange="filtrarProductosBuscadorResumen()" style="width: auto; margin: 0; padding: 4px 8px; font-size: 12px;">
+            <option value="">📍 Todas las habitaciones</option>
+          </select>
+        </div>
+
+        <div style="position: relative;">
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <input type="text" id="inputBuscadorResumen" placeholder="🔍 Escribí producto, categoría, habitación o código..." oninput="filtrarProductosBuscadorResumen()" onfocus="filtrarProductosBuscadorResumen()" onkeydown="manejarKeydownBuscadorResumen(event)" style="margin: 0; padding: 10px 12px; font-size: 14px; flex: 1;">
+            <button class="btn btn-outline" onclick="limpiarBuscadorResumen()" title="Limpiar búsqueda" style="padding: 9px 12px;">✕</button>
+          </div>
+          <!-- Desplegable interactivo de resultados -->
+          <div id="resultadosBuscadorResumen" class="live-search-results" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- FILTRO DENTRO DE LA TABLA DE RESUMEN -->
+      <input type="text" id="filtroTextoResumen" placeholder="🔍 Filtrar productos en la tabla..." oninput="renderizarTablaResumen()" style="margin-bottom: 8px;">
+
+      <div id="contenedorTabla"></div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" style="flex: 1.2; padding: 12px;" onclick="descargarExcel()">📥 Descargar Excel (.xlsx)</button>
+        <button class="btn btn-success" style="flex: 1; padding: 12px;" onclick="enviarWhatsAppModal()">💬 WhatsApp</button>
+        <button class="btn btn-secondary" onclick="copiarTexto()">📋 Copiar</button>
+      </div>
+
+      <div class="btn-group" style="margin-top: 10px;">
+        <button class="btn btn-outline" style="flex: 1;" onclick="guardarEnHistorial(true)">💾 Guardar en Historial</button>
+        <button class="btn btn-outline" style="flex: 1;" onclick="iniciarRevision()">🔄 Reiniciar Revisión</button>
+        <button class="btn btn-danger" style="padding: 8px 12px;" onclick="vaciarPedido()" title="Vaciar pedido">🗑️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PESTAÑA 2: CATÁLOGO DE PRODUCTOS -->
+  <div id="vistaCatalogo" style="display:none;">
+    <h2>Administrar Catálogo</h2>
+    
+    <div class="card-box">
+      <h3 style="margin-top: 0;">Agregar nuevo producto</h3>
+      
+      <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 8px;">
+        <div>
+          <label style="font-size: 12px; font-weight: 600;">Nombre del producto:</label>
+          <input type="text" id="nuevoNombre" placeholder="Ej. Resma A4 75g">
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 600;">Categoría:</label>
+          <input type="text" id="nuevaCategoria" placeholder="Ej. Papelería" list="listaCategoriasExistentes" oninput="actualizarColorSegunCategoriaAlta()">
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 600;">Habitación / Sector:</label>
+          <input type="text" id="nuevaHabitacion" placeholder="Ej. Depósito" list="listaHabitacionesExistentes">
+        </div>
+      </div>
+
+      <label style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Color de la categoría:</label>
+      <div class="color-palette" id="paletaColorAlta"></div>
+      <div id="chipsCategoriasAlta" style="margin-bottom: 6px;"></div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <div>
+          <label style="font-size: 12px; font-weight: 600;">Cant. habitual sugerida:</label>
+          <input type="number" id="nuevaCantidad" min="1" value="1">
+        </div>
+        <div>
+          <label style="font-size: 12px; font-weight: 600;">Unidad de medida:</label>
+          <select id="nuevaUnidad">
+            <option value="Unidades">Unidades</option>
+            <option value="Cajas">Cajas</option>
+            <option value="Bultos">Bultos</option>
+            <option value="Resmas">Resmas</option>
+            <option value="Rollos">Rollos</option>
+            <option value="Paquetes">Paquetes</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; margin-top: 4px;">
+        <div>
+          <input type="text" id="nuevoCodigo" placeholder="Código de barras (opcional)">
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; padding-bottom: 4px;">
+          <input type="checkbox" id="nuevoFavorito" style="width: auto; margin:0;">
+          <label for="nuevoFavorito" style="font-size: 12px; font-weight: 600; cursor: pointer;">⭐ Favorito</label>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="agregarProducto()">+ Agregar Producto al Catálogo</button>
+    </div>
+
+    <datalist id="listaCategoriasExistentes"></datalist>
+    <datalist id="listaHabitacionesExistentes"></datalist>
+
+    <!-- BARRA DE BÚSQUEDA Y FILTRO DE CATÁLOGO -->
+    <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+      <input type="text" id="buscadorCatalogo" placeholder="🔍 Buscar por nombre, categoría, habitación o código..." oninput="renderizarCatalogo()" style="flex: 1; margin:0; min-width: 180px;">
+      <select id="filtroHabitacionCatalogo" onchange="renderizarCatalogo()" style="width: auto; margin:0; font-size: 12px;">
+        <option value="">📍 Todas las habitaciones</option>
+      </select>
+      <button class="btn btn-outline" id="btnFiltroFavsCat" onclick="toggleFiltroFavsCatalogo()" style="font-size: 12px; white-space: nowrap;">⭐ Solo Favoritos</button>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+      <span style="font-size: 13px; color: var(--text-muted);">Mostrando <strong id="totalCatalogo">0</strong> artículos</span>
+      <div style="display: flex; gap: 4px;">
+        <button class="btn btn-outline" style="font-size: 11px; padding: 4px 8px;" onclick="ordenarPorNombre()">🔤 A-Z</button>
+        <button class="btn btn-outline" style="font-size: 11px; padding: 4px 8px;" onclick="ordenarPorHabitacion()">📍 Habitación</button>
+        <button class="btn btn-outline" style="font-size: 11px; padding: 4px 8px;" onclick="ordenarPorCategoria()">🏷️ Categoría</button>
+      </div>
+    </div>
+
+    <ul class="product-list" id="listaCatalogo"></ul>
+
+    <!-- SECCIÓN COPIAS, SINCRONIZACIÓN Y EXCEL MASIVO -->
+    <div class="card-box" style="margin-top: 18px; background: var(--card-alt);">
+      <strong style="font-size: 13px;">Importación y Copia de Seguridad</strong>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 2px 0 10px 0;">Cargá productos desde un Excel existente o respaldá tu catálogo.</p>
+      
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button class="btn btn-outline" style="font-size: 12px;" onclick="exportarCatalogoJSON()">📤 Exportar JSON</button>
+        <button class="btn btn-outline" style="font-size: 12px;" onclick="document.getElementById('inputImportar').click()">📥 Importar JSON</button>
+        <button class="btn btn-outline" style="font-size: 12px;" onclick="document.getElementById('inputImportarExcel').click()">📊 Cargar Excel Masivo</button>
+        
+        <input type="file" id="inputImportar" accept=".json" style="display: none;" onchange="importarCatalogoJSON(event)">
+        <input type="file" id="inputImportarExcel" accept=".xlsx,.xls,.csv" style="display: none;" onchange="importarCatalogoExcel(event)">
+      </div>
+    </div>
+  </div>
+
+  <!-- PESTAÑA 3: HISTORIAL DE PEDIDOS -->
+  <div id="vistaHistorial" style="display:none;">
+    <h2>Historial de Pedidos</h2>
+    <p style="color: var(--text-muted); font-size: 13px;">Registro de todos los pedidos semanales guardados en este dispositivo:</p>
+    <div id="contenedorHistorial"></div>
+  </div>
+
+  <!-- PESTAÑA 4: ESTADÍSTICAS -->
+  <div id="vistaEstadisticas" style="display:none;">
+    <h2>Estadísticas de Consumo y Rotación</h2>
+    <div id="contenedorEstadisticas"></div>
+  </div>
+</div>
+
+<!-- MODAL ESCÁNER CÓDIGO DE BARRAS -->
+<div class="modal-overlay" id="modalEscaner">
+  <div class="modal-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h3 style="margin:0;">📷 Escanear Código de Barras</h3>
+      <button class="btn btn-outline" style="padding: 4px 8px;" onclick="cerrarEscanerCamara()">✕</button>
+    </div>
+    <div id="qr-reader" style="width: 100%;"></div>
+    <div id="resultadoEscaner" style="margin-top: 10px; font-size: 13px; color: var(--text-muted); text-align: center;">Apuntá con la cámara al código de barras.</div>
+  </div>
+</div>
+
+<!-- MODAL WHATSAPP -->
+<div class="modal-overlay" id="modalWhatsApp">
+  <div class="modal-content">
+    <h3 style="margin-top:0;">💬 Enviar Pedido por WhatsApp</h3>
+    <label style="font-size: 12px; font-weight: 600;">Número de teléfono / Proveedor (opcional con código de país, ej. 54911xxxxxxxx):</label>
+    <input type="tel" id="inputNumeroWhatsApp" placeholder="Ej: 5491112345678">
+    <small style="color: var(--text-muted); display: block; margin-bottom: 12px;">Podés dejarlo vacío para elegir el contacto directamente en WhatsApp.</small>
+
+    <div class="btn-group">
+      <button class="btn btn-success" style="flex: 1;" onclick="confirmarEnviarWhatsApp()">Abrir WhatsApp</button>
+      <button class="btn btn-outline" onclick="cerrarModalWhatsApp()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE DE HISTORIAL -->
+<div class="modal-overlay" id="modalDetalleHistorial">
+  <div class="modal-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <h3 id="tituloDetalleHistorial" style="margin:0;">Detalle del Pedido</h3>
+      <button class="btn btn-outline" style="padding: 4px 8px;" onclick="cerrarModalDetalle()">✕</button>
+    </div>
+    <div id="cuerpoDetalleHistorial"></div>
+  </div>
+</div>
+
+<script>
+  const PALETA_COLORES = [
+    "#2563eb", "#16a34a", "#d97706", "#dc2626",
+    "#9333ea", "#0891b2", "#e11d48", "#475569"
+  ];
+
+  const catalogoPorDefecto = [
+    { id: 1, nombre: "Resma A4 75g", categoria: "Papelería", habitacion: "Depósito", cantidadDefault: 10, unidad: "Resmas", favorito: true },
+    { id: 2, nombre: "Resma Oficio 75g", categoria: "Papelería", habitacion: "Depósito", cantidadDefault: 5, unidad: "Resmas", favorito: true },
+    { id: 3, nombre: "Cinta de embalar 48x40", categoria: "Embalaje", habitacion: "Mostrador", cantidadDefault: 12, unidad: "Rollos", favorito: true },
+    { id: 4, nombre: "Cinta de papel 24mm", categoria: "Embalaje", habitacion: "Mostrador", cantidadDefault: 6, unidad: "Rollos", favorito: false },
+    { id: 5, nombre: "Rollos térmicos 80x50", categoria: "Rollos", habitacion: "Caja", cantidadDefault: 20, unidad: "Rollos", favorito: true },
+    { id: 6, nombre: "Bolsas camiseta 30x40", categoria: "Bolsas", habitacion: "Depósito", cantidadDefault: 4, unidad: "Bultos", favorito: false },
+    { id: 7, nombre: "Bolsas camiseta 40x50", categoria: "Bolsas", habitacion: "Depósito", cantidadDefault: 4, unidad: "Bultos", favorito: false }
+  ];
+
+  const coloresPorDefecto = {
+    "Papelería": "#2563eb",
+    "Embalaje": "#d97706",
+    "Rollos": "#0891b2",
+    "Bolsas": "#16a34a",
+    "General": "#475569"
+  };
+
+  let catalogo = JSON.parse(localStorage.getItem("catalogo_productos")) || catalogoPorDefecto;
+  catalogo.forEach(p => {
+    if (!p.categoria) p.categoria = "General";
+    if (!p.habitacion) p.habitacion = "General";
+    if (!p.unidad) p.unidad = "Unidades";
+    if (p.favorito === undefined) p.favorito = false;
+    if (!p.codigo) p.codigo = "";
+    delete p.precio;
+  });
+
+  let coloresCategorias = JSON.parse(localStorage.getItem("colores_categorias")) || coloresPorDefecto;
+  let historialPedidos = JSON.parse(localStorage.getItem("historial_pedidos")) || [];
+
+  let colorSeleccionadoAlta = PALETA_COLORES[0];
+  let listaRevisionActual = [];
+  let indiceActual = 0;
+  let pedidoFinal = [];
+  let indexEnEdicion = null;
+  let colorEnEdicion = null;
+  let filtroSoloFavoritosCat = false;
+  let html5QrCode = null;
+
+  function inicializarTema() {
+    const temaGuardado = localStorage.getItem("tema_app");
+    if (temaGuardado === "dark" || (!temaGuardado && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      document.documentElement.setAttribute("data-theme", "dark");
+      document.getElementById("btnThemeToggle").innerText = "☀️";
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      document.getElementById("btnThemeToggle").innerText = "🌙";
+    }
+  }
+
+  function alternarTema() {
+    const esOscuro = document.documentElement.getAttribute("data-theme") === "dark";
+    if (esOscuro) {
+      document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("tema_app", "light");
+      document.getElementById("btnThemeToggle").innerText = "🌙";
+    } else {
+      document.documentElement.setAttribute("data-theme", "dark");
+      localStorage.setItem("tema_app", "dark");
+      document.getElementById("btnThemeToggle").innerText = "☀️";
+    }
+  }
+
+  function guardarTodo() {
+    localStorage.setItem("catalogo_productos", JSON.stringify(catalogo));
+    localStorage.setItem("colores_categorias", JSON.stringify(coloresCategorias));
+    actualizarEstadisticasBadge();
+    actualizarSelectoresHabitacion();
+    actualizarSelectorAlcance();
+    renderizarCatalogo();
+  }
+
+  function guardarHistorial() {
+    localStorage.setItem("historial_pedidos", JSON.stringify(historialPedidos));
+  }
+
+  function obtenerColorCategoria(cat) {
+    if (!cat) cat = "General";
+    if (coloresCategorias[cat]) return coloresCategorias[cat];
+    const hash = cat.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const color = PALETA_COLORES[hash % PALETA_COLORES.length];
+    coloresCategorias[cat] = color;
+    localStorage.setItem("colores_categorias", JSON.stringify(coloresCategorias));
+    return color;
+  }
+
+  function getEstiloBadge(colorHex) {
+    if (!colorHex) colorHex = "#2563eb";
+    return `background-color: ${colorHex}18; color: ${colorHex}; border: 1px solid ${colorHex}45;`;
+  }
+
+  function cambiarPestana(tab) {
+    indexEnEdicion = null;
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}Btn`).classList.add("active");
+    
+    document.getElementById("vistaChecklist").style.display = tab === 'checklist' ? 'block' : 'none';
+    document.getElementById("vistaCatalogo").style.display = tab === 'catalogo' ? 'block' : 'none';
+    document.getElementById("vistaHistorial").style.display = tab === 'historial' ? 'block' : 'none';
+    document.getElementById("vistaEstadisticas").style.display = tab === 'estadisticas' ? 'block' : 'none';
+
+    if (tab === 'catalogo') {
+      renderizarPaletaAlta();
+      actualizarDatalistHabitaciones();
+      renderizarCatalogo();
+    } else if (tab === 'historial') {
+      renderizarHistorial();
+    } else if (tab === 'estadisticas') {
+      renderizarEstadisticas();
+    } else if (tab === 'checklist') {
+      actualizarSelectorAlcance();
+      actualizarSelectoresHabitacion();
+    }
+  }
+
+  function obtenerCategoriasUnicas() {
+    return [...new Set(catalogo.map(p => (p.categoria || "").trim()).filter(Boolean))];
+  }
+
+  function obtenerHabitacionesUnicas() {
+    return [...new Set(catalogo.map(p => (p.habitacion || "General").trim()).filter(Boolean))];
+  }
+
+  function actualizarEstadisticasBadge() {
+    document.getElementById("statTotalItems").innerText = catalogo.length;
+    document.getElementById("statTotalFavs").innerText = catalogo.filter(p => p.favorito).length;
+    document.getElementById("statTotalPedidos").innerText = historialPedidos.length;
+  }
+
+  function actualizarSelectoresHabitacion() {
+    const habs = obtenerHabitacionesUnicas();
+
+    // Selector en Catálogo
+    const selCat = document.getElementById("filtroHabitacionCatalogo");
+    if (selCat) {
+      const valActual = selCat.value;
+      selCat.innerHTML = '<option value="">📍 Todas las habitaciones</option>';
+      habs.forEach(h => {
+        const opt = document.createElement("option");
+        opt.value = h;
+        opt.innerText = `📍 ${h}`;
+        selCat.appendChild(opt);
+      });
+      selCat.value = valActual || "";
+    }
+
+    // Selector en Resumen / Carga rápida
+    const selRes = document.getElementById("filtroHabitacionResumen");
+    if (selRes) {
+      const valActual = selRes.value;
+      selRes.innerHTML = '<option value="">📍 Todas las habitaciones</option>';
+      habs.forEach(h => {
+        const opt = document.createElement("option");
+        opt.value = h;
+        opt.innerText = `📍 ${h}`;
+        selRes.appendChild(opt);
+      });
+      selRes.value = valActual || "";
+    }
+  }
+
+  function actualizarSelectorAlcance() {
+    const sel = document.getElementById("filtroAlcanceRevision");
+    const valActual = sel.value;
+    sel.innerHTML = `
+      <option value="todos">🌐 Todo el catálogo (${catalogo.length} productos)</option>
+      <option value="favoritos">⭐ Solo Favoritos / Críticos (${catalogo.filter(p=>p.favorito).length})</option>
+    `;
+
+    // Por Habitación / Sector
+    const habs = obtenerHabitacionesUnicas();
+    if (habs.length > 0) {
+      const optGroupHab = document.createElement("optgroup");
+      optGroupHab.label = "📍 Por Habitación / Sector";
+      habs.forEach(h => {
+        const cant = catalogo.filter(p => (p.habitacion || "General") === h).length;
+        const opt = document.createElement("option");
+        opt.value = `hab_${h}`;
+        opt.innerText = `📍 Habitación: ${h} (${cant})`;
+        optGroupHab.appendChild(opt);
+      });
+      sel.appendChild(optGroupHab);
+    }
+
+    // Por Categoría
+    const cats = obtenerCategoriasUnicas();
+    if (cats.length > 0) {
+      const optGroupCat = document.createElement("optgroup");
+      optGroupCat.label = "🏷️ Por Categoría";
+      cats.forEach(cat => {
+        const cant = catalogo.filter(p => p.categoria === cat).length;
+        const opt = document.createElement("option");
+        opt.value = `cat_${cat}`;
+        opt.innerText = `🏷️ Categoría: ${cat} (${cant})`;
+        optGroupCat.appendChild(opt);
+      });
+      sel.appendChild(optGroupCat);
+    }
+
+    if (valActual) sel.value = valActual;
+  }
+
+  function renderizarPaletaAlta() {
+    const contenedor = document.getElementById("paletaColorAlta");
+    contenedor.innerHTML = "";
+    PALETA_COLORES.forEach(c => {
+      const swatch = document.createElement("div");
+      swatch.className = `color-swatch ${c === colorSeleccionadoAlta ? 'selected' : ''}`;
+      swatch.style.backgroundColor = c;
+      swatch.onclick = () => { colorSeleccionadoAlta = c; renderizarPaletaAlta(); };
+      contenedor.appendChild(swatch);
+    });
+    const customInput = document.createElement("input");
+    customInput.type = "color";
+    customInput.value = colorSeleccionadoAlta;
+    customInput.style = "width: 26px; height: 26px; padding: 0; border: none; cursor: pointer; border-radius: 4px; margin: 0;";
+    customInput.title = "Color personalizado";
+    customInput.onchange = (e) => { colorSeleccionadoAlta = e.target.value; renderizarPaletaAlta(); };
+    contenedor.appendChild(customInput);
+  }
+
+  function actualizarColorSegunCategoriaAlta() {
+    const cat = document.getElementById("nuevaCategoria").value.trim();
+    if (cat && coloresCategorias[cat]) {
+      colorSeleccionadoAlta = coloresCategorias[cat];
+      renderizarPaletaAlta();
+    }
+  }
+
+  function actualizarDatalistCategorias() {
+    const datalist = document.getElementById("listaCategoriasExistentes");
+    datalist.innerHTML = "";
+    const cats = obtenerCategoriasUnicas();
+    cats.forEach(cat => {
+      const opt = document.createElement("option");
+      opt.value = cat;
+      datalist.appendChild(opt);
+    });
+
+    const chipsAlta = document.getElementById("chipsCategoriasAlta");
+    if (chipsAlta) {
+      chipsAlta.innerHTML = '<span style="font-size: 11px; color: var(--text-muted);">Sugerencias: </span>';
+      cats.forEach(cat => {
+        const color = obtenerColorCategoria(cat);
+        const btn = document.createElement("span");
+        btn.className = "cat-chip";
+        btn.innerHTML = `<span class="color-dot" style="background-color: ${color};"></span>${cat}`;
+        btn.onclick = () => {
+          document.getElementById("nuevaCategoria").value = cat;
+          colorSeleccionadoAlta = color;
+          renderizarPaletaAlta();
+        };
+        chipsAlta.appendChild(btn);
+      });
+    }
+  }
+
+  function actualizarDatalistHabitaciones() {
+    const datalist = document.getElementById("listaHabitacionesExistentes");
+    if (!datalist) return;
+    datalist.innerHTML = "";
+    const habs = obtenerHabitacionesUnicas();
+    habs.forEach(h => {
+      const opt = document.createElement("option");
+      opt.value = h;
+      datalist.appendChild(opt);
+    });
+  }
+
+  function renderizarCatalogo() {
+    const lista = document.getElementById("listaCatalogo");
+    lista.innerHTML = "";
+    actualizarDatalistCategorias();
+    actualizarDatalistHabitaciones();
+    const categoriasExistentes = obtenerCategoriasUnicas();
+
+    const filtroTexto = (document.getElementById("buscadorCatalogo").value || "").toLowerCase().trim();
+    const filtroHab = (document.getElementById("filtroHabitacionCatalogo")?.value || "").trim();
+
+    let filtrados = catalogo.filter(p => {
+      if (filtroSoloFavoritosCat && !p.favorito) return false;
+      if (filtroHab && (p.habitacion || "General") !== filtroHab) return false;
+      if (!filtroTexto) return true;
+      return p.nombre.toLowerCase().includes(filtroTexto) ||
+             p.categoria.toLowerCase().includes(filtroTexto) ||
+             (p.habitacion && p.habitacion.toLowerCase().includes(filtroTexto)) ||
+             (p.codigo && p.codigo.toLowerCase().includes(filtroTexto));
+    });
+
+    document.getElementById("totalCatalogo").innerText = `${filtrados.length} de ${catalogo.length}`;
+
+    filtrados.forEach((prod) => {
+      const indexReal = catalogo.findIndex(p => p.id === prod.id);
+      const colorProd = obtenerColorCategoria(prod.categoria);
+      const li = document.createElement("li");
+
+      if (indexEnEdicion === indexReal) {
+        li.className = "product-edit-form";
+        
+        let chipsHtml = `<div style="margin-top: 2px; margin-bottom: 6px;"><span style="font-size: 11px; color: var(--text-muted);">Elegir existente: </span>`;
+        categoriasExistentes.forEach(cat => {
+          const c = obtenerColorCategoria(cat);
+          chipsHtml += `<span class="cat-chip" onclick="seleccionarCatEdicion(${indexReal}, '${cat.replace(/'/g, "\\'")}', '${c}')"><span class="color-dot" style="background-color: ${c};"></span>${cat}</span>`;
+        });
+        chipsHtml += `</div>`;
+
+        let paletaHtml = `<div class="color-palette">`;
+        PALETA_COLORES.forEach(c => {
+          paletaHtml += `<div class="color-swatch ${c === colorEnEdicion ? 'selected' : ''}" style="background-color: ${c};" onclick="cambiarColorEdicion(${indexReal}, '${c}')"></div>`;
+        });
+        paletaHtml += `<input type="color" value="${colorEnEdicion}" style="width: 22px; height: 22px; padding: 0; border: none; cursor: pointer; margin:0;" onchange="cambiarColorEdicion(${indexReal}, this.value)"></div>`;
+
+        li.innerHTML = `
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 8px;">
+            <div>
+              <label style="font-size: 11px; font-weight: 600;">Nombre:</label>
+              <input type="text" id="editNombre_${indexReal}" value="${prod.nombre}">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600;">Categoría:</label>
+              <input type="text" id="editCat_${indexReal}" value="${prod.categoria}" list="listaCategoriasExistentes">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600;">Habitación:</label>
+              <input type="text" id="editHab_${indexReal}" value="${prod.habitacion || 'General'}" list="listaHabitacionesExistentes">
+            </div>
+          </div>
+          ${chipsHtml}
+          <label style="font-size: 11px; font-weight: 600;">Color de categoría:</label>
+          ${paletaHtml}
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div>
+              <label style="font-size: 11px; font-weight: 600;">Cant. habitual:</label>
+              <input type="number" id="editCant_${indexReal}" value="${prod.cantidadDefault}" min="1">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: 600;">Unidad:</label>
+              <input type="text" id="editUnidad_${indexReal}" value="${prod.unidad || 'Unidades'}">
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">
+            <input type="text" id="editCodigo_${indexReal}" value="${prod.codigo || ''}" placeholder="Código de barras" style="flex:1;">
+            <label style="font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer;">
+              <input type="checkbox" id="editFav_${indexReal}" ${prod.favorito ? 'checked' : ''} style="width:auto; margin:0;"> ⭐ Favorito
+            </label>
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 10px;">
+            <button class="btn btn-success" style="padding: 6px 12px;" onclick="guardarEdicion(${indexReal})">✓ Guardar</button>
+            <button class="btn btn-outline" style="padding: 6px 12px;" onclick="cancelarEdicion()">✕ Cancelar</button>
+          </div>
+        `;
+      } else {
+        li.className = "product-item";
+        li.innerHTML = `
+          <div>
+            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <button class="star-btn ${prod.favorito ? 'active' : ''}" onclick="toggleFavorito(${indexReal})" title="Alternar favorito">⭐</button>
+              <span class="badge" style="${getEstiloBadge(colorProd)}">
+                <span class="color-dot" style="background-color: ${colorProd}; margin-right: 5px;"></span>${prod.categoria}
+              </span>
+              <span class="badge badge-room">📍 ${prod.habitacion || 'General'}</span>
+              <strong>${prod.nombre}</strong>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-left: 26px; margin-top: 2px;">
+              Habitual: <strong>${prod.cantidadDefault} ${prod.unidad}</strong>
+              ${prod.codigo ? `· 🏷️ <small>${prod.codigo}</small>` : ''}
+            </div>
+          </div>
+          <div class="item-actions">
+            <button class="btn-icon" title="Subir" onclick="moverItem(${indexReal}, -1)" ${indexReal === 0 ? 'disabled style="opacity:0.3;"' : ''}>▲</button>
+            <button class="btn-icon" title="Bajar" onclick="moverItem(${indexReal}, 1)" ${indexReal === catalogo.length - 1 ? 'disabled style="opacity:0.3;"' : ''}>▼</button>
+            <button class="btn btn-outline" style="padding: 4px 8px; font-size: 11px;" onclick="activarEdicion(${indexReal})">✏️</button>
+            <button class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="eliminarProducto(${indexReal})">✕</button>
+          </div>
+        `;
+      }
+      lista.appendChild(li);
+    });
+  }
+
+  function toggleFiltroFavsCatalogo() {
+    filtroSoloFavoritosCat = !filtroSoloFavoritosCat;
+    const btn = document.getElementById("btnFiltroFavsCat");
+    btn.classList.toggle("btn-primary", filtroSoloFavoritosCat);
+    btn.classList.toggle("btn-outline", !filtroSoloFavoritosCat);
+    renderizarCatalogo();
+  }
+
+  function toggleFavorito(index) {
+    catalogo[index].favorito = !catalogo[index].favorito;
+    guardarTodo();
+  }
+
+  function toggleFavoritoActual() {
+    if (!listaRevisionActual[indiceActual]) return;
+    const prodRev = listaRevisionActual[indiceActual];
+    const realIdx = catalogo.findIndex(p => p.id === prodRev.id);
+    if (realIdx !== -1) {
+      catalogo[realIdx].favorito = !catalogo[realIdx].favorito;
+      prodRev.favorito = catalogo[realIdx].favorito;
+      document.getElementById("starProductoActual").classList.toggle("active", prodRev.favorito);
+      guardarTodo();
+    }
+  }
+
+  function activarEdicion(index) {
+    indexEnEdicion = index;
+    colorEnEdicion = obtenerColorCategoria(catalogo[index].categoria);
+    renderizarCatalogo();
+  }
+
+  function cancelarEdicion() {
+    indexEnEdicion = null;
+    colorEnEdicion = null;
+    renderizarCatalogo();
+  }
+
+  function seleccionarCatEdicion(index, cat, color) {
+    const input = document.getElementById(`editCat_${index}`);
+    if (input) input.value = cat;
+    colorEnEdicion = color;
+    renderizarCatalogo();
+  }
+
+  function cambiarColorEdicion(index, nuevoColor) {
+    colorEnEdicion = nuevoColor;
+    renderizarCatalogo();
+  }
+
+  function guardarEdicion(index) {
+    const nuevoNom = document.getElementById(`editNombre_${index}`).value.trim();
+    let nuevaCat = document.getElementById(`editCat_${index}`).value.trim() || "General";
+    let nuevaHab = document.getElementById(`editHab_${index}`).value.trim() || "General";
+    const nuevaCant = parseInt(document.getElementById(`editCant_${index}`).value) || 1;
+    const nuevaUnidad = document.getElementById(`editUnidad_${index}`).value.trim() || "Unidades";
+    const nuevoCodigo = document.getElementById(`editCodigo_${index}`).value.trim();
+    const nuevoFav = document.getElementById(`editFav_${index}`).checked;
+
+    if (!nuevoNom) { alert("El nombre no puede estar vacío."); return; }
+
+    catalogo[index].nombre = nuevoNom;
+    catalogo[index].categoria = nuevaCat;
+    catalogo[index].habitacion = nuevaHab;
+    catalogo[index].cantidadDefault = nuevaCant;
+    catalogo[index].unidad = nuevaUnidad;
+    catalogo[index].codigo = nuevoCodigo;
+    catalogo[index].favorito = nuevoFav;
+
+    if (colorEnEdicion) coloresCategorias[nuevaCat] = colorEnEdicion;
+
+    indexEnEdicion = null;
+    colorEnEdicion = null;
+    guardarTodo();
+  }
+
+  function moverItem(index, direccion) {
+    const nuevoIndex = index + direccion;
+    if (nuevoIndex < 0 || nuevoIndex >= catalogo.length) return;
+    const item = catalogo.splice(index, 1)[0];
+    catalogo.splice(nuevoIndex, 0, item);
+    guardarTodo();
+  }
+
+  function ordenarPorNombre() {
+    catalogo.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+    guardarTodo();
+  }
+
+  function ordenarPorCategoria() {
+    catalogo.sort((a, b) => {
+      const catCompare = a.categoria.localeCompare(b.categoria, 'es', { sensitivity: 'base' });
+      if (catCompare !== 0) return catCompare;
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    });
+    guardarTodo();
+  }
+
+  function ordenarPorHabitacion() {
+    catalogo.sort((a, b) => {
+      const habA = a.habitacion || "General";
+      const habB = b.habitacion || "General";
+      const habCompare = habA.localeCompare(habB, 'es', { sensitivity: 'base' });
+      if (habCompare !== 0) return habCompare;
+      return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' });
+    });
+    guardarTodo();
+  }
+
+  function agregarProducto() {
+    const nombre = document.getElementById("nuevoNombre").value.trim();
+    let categoria = document.getElementById("nuevaCategoria").value.trim() || "General";
+    let habitacion = document.getElementById("nuevaHabitacion").value.trim() || "General";
+    const cant = parseInt(document.getElementById("nuevaCantidad").value) || 1;
+    const unidad = document.getElementById("nuevaUnidad").value || "Unidades";
+    const codigo = document.getElementById("nuevoCodigo").value.trim();
+    const favorito = document.getElementById("nuevoFavorito").checked;
+
+    if (!nombre) { alert("Por favor escribí el nombre del producto."); return; }
+
+    coloresCategorias[categoria] = colorSeleccionadoAlta;
+
+    catalogo.push({
+      id: Date.now(),
+      nombre,
+      categoria,
+      habitacion,
+      cantidadDefault: cant,
+      unidad,
+      codigo,
+      favorito
+    });
+
+    guardarTodo();
+
+    document.getElementById("nuevoNombre").value = "";
+    document.getElementById("nuevaCategoria").value = "";
+    document.getElementById("nuevaHabitacion").value = "";
+    document.getElementById("nuevaCantidad").value = "1";
+    document.getElementById("nuevoCodigo").value = "";
+    document.getElementById("nuevoFavorito").checked = false;
+  }
+
+  function eliminarProducto(index) {
+    if (confirm("¿Eliminar este producto del catálogo?")) {
+      catalogo.splice(index, 1);
+      guardarTodo();
+    }
+  }
+
+  // --- REVISIÓN SEMANAL ---
+  function iniciarRevision() {
+    if (catalogo.length === 0) {
+      alert("No hay productos en el catálogo. Agregá productos primero en la pestaña 'Catálogo'.");
+      cambiarPestana('catalogo');
+      return;
+    }
+
+    const alcance = document.getElementById("filtroAlcanceRevision").value;
+    if (alcance === "todos") {
+      listaRevisionActual = [...catalogo];
+    } else if (alcance === "favoritos") {
+      listaRevisionActual = catalogo.filter(p => p.favorito);
+      if (listaRevisionActual.length === 0) {
+        alert("No tenés productos marcados como favoritos ⭐. Marcá algunos en el catálogo primero.");
+        return;
+      }
+    } else if (alcance.startsWith("hab_")) {
+      const habSeleccionada = alcance.replace("hab_", "");
+      listaRevisionActual = catalogo.filter(p => (p.habitacion || "General") === habSeleccionada);
+    } else if (alcance.startsWith("cat_")) {
+      const catSeleccionada = alcance.replace("cat_", "");
+      listaRevisionActual = catalogo.filter(p => p.categoria === catSeleccionada);
+    }
+
+    if (listaRevisionActual.length === 0) {
+      alert("No hay productos disponibles para el alcance seleccionado.");
+      return;
+    }
+
+    indiceActual = 0;
+    document.getElementById("pantallaInicio").style.display = "none";
+    document.getElementById("pantallaResumen").style.display = "none";
+    document.getElementById("pantallaRevision").style.display = "block";
+    mostrarProducto();
+  }
+
+  function finalizarRevisionDirecta() {
+    document.getElementById("pantallaInicio").style.display = "none";
+    document.getElementById("pantallaRevision").style.display = "none";
+    finalizarRevision();
+  }
+
+  function mostrarProducto() {
+    const prod = listaRevisionActual[indiceActual];
+    const color = obtenerColorCategoria(prod.categoria);
+
+    const badgeEl = document.getElementById("catProductoActual");
+    badgeEl.innerText = prod.categoria;
+    badgeEl.style = getEstiloBadge(color);
+
+    document.getElementById("habProductoActual").innerText = `📍 ${prod.habitacion || 'General'}`;
+
+    document.getElementById("starProductoActual").classList.toggle("active", !!prod.favorito);
+    document.getElementById("nombreProductoActual").innerText = prod.nombre;
+    document.getElementById("cantSugeridaActual").innerText = prod.cantidadDefault;
+    document.getElementById("unidadProductoActual").innerText = `Unidad: ${prod.unidad}`;
+    document.getElementById("labelUnidadInput").innerText = prod.unidad;
+
+    document.getElementById("inputCantidad").value = prod.cantidadDefault;
+    document.getElementById("calcStockActual").value = "";
+    document.getElementById("calcStockIdeal").value = prod.cantidadDefault;
+
+    document.getElementById("bloqueCantidad").style.display = "none";
+    document.getElementById("botonesPrincipales").style.display = "flex";
+
+    const total = listaRevisionActual.length;
+    const porcentaje = Math.round((indiceActual / total) * 100);
+    document.getElementById("contadorProgreso").innerText = `Producto ${indiceActual + 1} de ${total}`;
+    document.getElementById("barraProgreso").style.width = `${porcentaje}%`;
+    document.getElementById("btnAnterior").style.visibility = indiceActual > 0 ? "visible" : "hidden";
+    document.getElementById("cantEnPedidoBadge").innerText = pedidoFinal.length;
+  }
+
+  function calcularReposicion() {
+    const actual = parseInt(document.getElementById("calcStockActual").value) || 0;
+    const ideal = parseInt(document.getElementById("calcStockIdeal").value) || 0;
+    const diff = Math.max(1, ideal - actual);
+    document.getElementById("inputCantidad").value = diff;
+  }
+
+  function marcarConStock() {
+    pedidoFinal = pedidoFinal.filter(item => item.nombre !== listaRevisionActual[indiceActual].nombre);
+    avanzar();
+  }
+
+  function mostrarInputCantidad() {
+    document.getElementById("bloqueCantidad").style.display = "block";
+    document.getElementById("botonesPrincipales").style.display = "none";
+    document.getElementById("inputCantidad").focus();
+  }
+
+  function confirmarFaltaStock() {
+    const cant = parseInt(document.getElementById("inputCantidad").value);
+    if (!cant || cant <= 0) {
+      alert("Ingresá una cantidad válida mayor a 0.");
+      return;
+    }
+
+    const prod = listaRevisionActual[indiceActual];
+    pedidoFinal = pedidoFinal.filter(item => item.nombre !== prod.nombre);
+    pedidoFinal.push({
+      id: prod.id,
+      nombre: prod.nombre,
+      categoria: prod.categoria,
+      habitacion: prod.habitacion || "General",
+      cantidad: cant,
+      unidad: prod.unidad
+    });
+    avanzar();
+  }
+
+  function productoAnterior() {
+    if (indiceActual > 0) {
+      indiceActual--;
+      mostrarProducto();
+    }
+  }
+
+  function avanzar() {
+    indiceActual++;
+    if (indiceActual < listaRevisionActual.length) {
+      mostrarProducto();
+    } else {
+      finalizarRevision();
+    }
+  }
+
+  function finalizarRevision() {
+    document.getElementById("pantallaInicio").style.display = "none";
+    document.getElementById("pantallaRevision").style.display = "none";
+    document.getElementById("pantallaResumen").style.display = "block";
+
+    actualizarSelectoresHabitacion();
+    renderizarTablaResumen();
+  }
+
+  // --- BUSCADOR INTERACTIVO EN PANTALLA DE RESUMEN ---
+  function filtrarProductosBuscadorResumen() {
+    const contResultados = document.getElementById("resultadosBuscadorResumen");
+    const texto = (document.getElementById("inputBuscadorResumen")?.value || "").toLowerCase().trim();
+    const filtroHab = (document.getElementById("filtroHabitacionResumen")?.value || "").trim();
+
+    if (!texto && !filtroHab) {
+      contResultados.style.display = "none";
+      contResultados.innerHTML = "";
+      return;
+    }
+
+    let coincidencias = catalogo.filter(p => {
+      if (filtroHab && (p.habitacion || "General") !== filtroHab) return false;
+      if (!texto) return true;
+      return p.nombre.toLowerCase().includes(texto) ||
+             p.categoria.toLowerCase().includes(texto) ||
+             (p.habitacion && p.habitacion.toLowerCase().includes(texto)) ||
+             (p.codigo && p.codigo.toLowerCase().includes(texto));
+    });
+
+    if (coincidencias.length === 0) {
+      contResultados.innerHTML = `<div style="padding: 12px; font-size: 13px; color: var(--text-muted); text-align: center;">No se encontraron productos coincidentes.</div>`;
+      contResultados.style.display = "block";
+      return;
+    }
+
+    let html = "";
+    coincidencias.slice(0, 15).forEach(prod => {
+      const color = obtenerColorCategoria(prod.categoria);
+      const enPedido = pedidoFinal.find(p => p.id === prod.id || p.nombre === prod.nombre);
+      const cantActual = enPedido ? enPedido.cantidad : prod.cantidadDefault;
+
+      html += `
+        <div class="search-result-item">
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+              <span class="badge" style="${getEstiloBadge(color)}; font-size: 10px; padding: 2px 6px;">${prod.categoria}</span>
+              <span class="badge badge-room" style="font-size: 10px; padding: 2px 6px;">📍 ${prod.habitacion || 'General'}</span>
+              <strong style="font-size: 13px;">${prod.nombre}</strong>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+              Habitual: ${prod.cantidadDefault} ${prod.unidad}
+              ${enPedido ? `· <strong style="color: var(--success);">✓ Ya en pedido: ${enPedido.cantidad}</strong>` : ''}
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+            <input type="number" id="cantRapida_${prod.id}" value="${cantActual}" min="1" style="width: 55px; margin: 0; padding: 4px 6px; font-size: 13px; text-align: center;">
+            <button class="btn ${enPedido ? 'btn-outline' : 'btn-primary'}" style="padding: 6px 10px; font-size: 12px;" onclick="sumarProductoDirecto(${prod.id})">
+              ${enPedido ? 'Actualizar' : '+ Agregar'}
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    contResultados.innerHTML = html;
+    contResultados.style.display = "block";
+  }
+
+  function sumarProductoDirecto(prodId) {
+    const prod = catalogo.find(p => p.id === prodId);
+    if (!prod) return;
+
+    const inputCant = document.getElementById(`cantRapida_${prodId}`);
+    const cant = parseInt(inputCant?.value) || prod.cantidadDefault || 1;
+
+    const existente = pedidoFinal.find(p => p.id === prod.id || p.nombre === prod.nombre);
+    if (existente) {
+      existente.cantidad = cant;
+    } else {
+      pedidoFinal.push({
+        id: prod.id,
+        nombre: prod.nombre,
+        categoria: prod.categoria,
+        habitacion: prod.habitacion || "General",
+        cantidad: cant,
+        unidad: prod.unidad
+      });
+    }
+
+    renderizarTablaResumen();
+    filtrarProductosBuscadorResumen();
+  }
+
+  function manejarKeydownBuscadorResumen(e) {
+    if (e.key === "Enter") {
+      const primerBoton = document.querySelector("#resultadosBuscadorResumen .search-result-item button");
+      if (primerBoton) {
+        primerBoton.click();
+        e.preventDefault();
+      }
+    } else if (e.key === "Escape") {
+      limpiarBuscadorResumen();
+    }
+  }
+
+  function limpiarBuscadorResumen() {
+    const input = document.getElementById("inputBuscadorResumen");
+    if (input) input.value = "";
+    const cont = document.getElementById("resultadosBuscadorResumen");
+    if (cont) {
+      cont.style.display = "none";
+      cont.innerHTML = "";
+    }
+  }
+
+  // Cerrar desplegable al hacer clic afuera
+  document.addEventListener("click", (e) => {
+    const cont = document.getElementById("resultadosBuscadorResumen");
+    const input = document.getElementById("inputBuscadorResumen");
+    const filtroHab = document.getElementById("filtroHabitacionResumen");
+    if (cont && !cont.contains(e.target) && e.target !== input && e.target !== filtroHab) {
+      cont.style.display = "none";
+    }
+  });
+
+  function renderizarTablaResumen() {
+    const cont = document.getElementById("contenedorTabla");
+    const filtro = (document.getElementById("filtroTextoResumen")?.value || "").toLowerCase().trim();
+
+    let itemsVisibles = pedidoFinal.filter(p => {
+      if (!filtro) return true;
+      return p.nombre.toLowerCase().includes(filtro) ||
+             p.categoria.toLowerCase().includes(filtro) ||
+             (p.habitacion && p.habitacion.toLowerCase().includes(filtro));
+    });
+
+    if (pedidoFinal.length === 0) {
+      cont.innerHTML = "<p style='color: var(--text-muted); font-style: italic; padding: 12px 0;'>No hay productos agregados al pedido todavía. Podés buscarlos y sumarlos arriba o iniciar la revisión.</p>";
+      return;
+    }
+
+    let html = `<table><tr><th>Categoría</th><th>Habitación</th><th>Producto</th><th>Cantidad</th><th></th></tr>`;
+    itemsVisibles.forEach((p) => {
+      const realIdx = pedidoFinal.findIndex(item => item.nombre === p.nombre);
+      const color = obtenerColorCategoria(p.categoria);
+
+      html += `<tr>
+        <td><span class="badge" style="${getEstiloBadge(color)}">${p.categoria}</span></td>
+        <td><span class="badge badge-room">📍 ${p.habitacion || 'General'}</span></td>
+        <td><strong>${p.nombre}</strong></td>
+        <td>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="number" value="${p.cantidad}" min="1" style="width: 70px; margin:0; padding:4px;" onchange="actualizarCantidadResumen(${realIdx}, this.value)">
+            <small style="color:var(--text-muted);">${p.unidad || ''}</small>
+          </div>
+        </td>
+        <td><button class="btn btn-danger" style="padding: 3px 7px; font-size: 11px;" onclick="quitarItemResumen(${realIdx})">✕</button></td>
+      </tr>`;
+    });
+    html += `</table>`;
+    cont.innerHTML = html;
+  }
+
+  function quitarItemResumen(index) {
+    pedidoFinal.splice(index, 1);
+    renderizarTablaResumen();
+    filtrarProductosBuscadorResumen();
+  }
+
+  function vaciarPedido() {
+    if (confirm("¿Querés vaciar todos los productos del pedido actual?")) {
+      pedidoFinal = [];
+      renderizarTablaResumen();
+      filtrarProductosBuscadorResumen();
+    }
+  }
+
+  function actualizarCantidadResumen(index, nuevaCant) {
+    pedidoFinal[index].cantidad = parseInt(nuevaCant) || 1;
+    renderizarTablaResumen();
+    filtrarProductosBuscadorResumen();
+  }
+
+  // --- ATAJOS DE TECLADO ---
+  window.addEventListener("keydown", (e) => {
+    const vistaRev = document.getElementById("pantallaRevision");
+    if (vistaRev && vistaRev.style.display === "block") {
+      const activeTag = document.activeElement.tagName.toLowerCase();
+      if (activeTag === "input" || activeTag === "textarea") {
+        if (e.key === "Enter") {
+          confirmarFaltaStock();
+          e.preventDefault();
+        }
+        return;
+      }
+
+      if (e.key === " " || e.key.toLowerCase() === "s") {
+        marcarConStock();
+        e.preventDefault();
+      } else if (e.key.toLowerCase() === "n" || e.key === "Enter") {
+        mostrarInputCantidad();
+        e.preventDefault();
+      } else if (e.key === "ArrowLeft") {
+        productoAnterior();
+        e.preventDefault();
+      } else if (e.key.toLowerCase() === "f" || e.key === "Escape") {
+        finalizarRevision();
+        e.preventDefault();
+      }
+    }
+  });
+
+  // --- EXPORTACIÓN EXCEL (.xlsx) ---
+  function descargarExcel() {
+    if (pedidoFinal.length === 0) {
+      alert("No hay productos en el pedido para exportar.");
+      return;
+    }
+
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const fechaStr = `${yyyy}-${mm}-${dd}`;
+
+    const datosExcel = [
+      ["Fecha de pedido", fechaStr],
+      ["Categoría", "Habitación / Sector", "Producto", "Cantidad", "Unidad"],
+      ...pedidoFinal.map(p => [p.categoria, p.habitacion || "General", p.nombre, p.cantidad, p.unidad || ""])
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(datosExcel);
+
+    ws['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 38 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Pedido");
+    XLSX.writeFile(wb, `Planilla_pedido_${fechaStr}.xlsx`);
+
+    guardarEnHistorial(false);
+  }
+
+  // --- WHATSAPP ---
+  function generarTextoPedido() {
+    const hoy = new Date();
+    const fechaStr = hoy.toLocaleDateString('es-AR');
+
+    let texto = `*PEDIDO SEMANAL*\nFecha: ${fechaStr}\n\n`;
+    const grupos = {};
+    pedidoFinal.forEach(p => {
+      const key = p.categoria || "General";
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(p);
+    });
+
+    for (const [cat, prods] of Object.entries(grupos)) {
+      texto += `*${cat.toUpperCase()}*\n`;
+      prods.forEach(p => {
+        const habStr = p.habitacion && p.habitacion !== "General" ? ` [${p.habitacion}]` : '';
+        texto += `• ${p.nombre}${habStr}: ${p.cantidad} ${p.unidad || ''}\n`;
+      });
+      texto += `\n`;
+    }
+    return texto.trim();
+  }
+
+  function copiarTexto() {
+    if (pedidoFinal.length === 0) { alert("No hay productos para copiar."); return; }
+    const texto = generarTextoPedido();
+    navigator.clipboard.writeText(texto).then(() => {
+      alert("¡Pedido copiado al portapapeles!");
+    });
+    guardarEnHistorial(false);
+  }
+
+  function enviarWhatsAppModal() {
+    if (pedidoFinal.length === 0) { alert("No hay productos para enviar."); return; }
+    const telGuardado = localStorage.getItem("whatsapp_proveedor_tel") || "";
+    document.getElementById("inputNumeroWhatsApp").value = telGuardado;
+    document.getElementById("modalWhatsApp").style.display = "flex";
+  }
+
+  function cerrarModalWhatsApp() {
+    document.getElementById("modalWhatsApp").style.display = "none";
+  }
+
+  function confirmarEnviarWhatsApp() {
+    const num = document.getElementById("inputNumeroWhatsApp").value.replace(/[^0-9]/g, '');
+    if (num) localStorage.setItem("whatsapp_proveedor_tel", num);
+    const texto = encodeURIComponent(generarTextoPedido());
+    const url = num ? `https://wa.me/${num}?text=${texto}` : `https://wa.me/?text=${texto}`;
+    window.open(url, "_blank");
+    cerrarModalWhatsApp();
+    guardarEnHistorial(false);
+  }
+
+  // --- HISTORIAL DE PEDIDOS ---
+  function guardarEnHistorial(notificar) {
+    if (pedidoFinal.length === 0) {
+      if (notificar) alert("No hay productos para guardar.");
+      return;
+    }
+
+    const hoy = new Date();
+    const fechaId = hoy.toISOString();
+    const fechaStr = hoy.toLocaleString('es-AR');
+
+    let totalUnidades = 0;
+    pedidoFinal.forEach(p => totalUnidades += p.cantidad);
+
+    historialPedidos.unshift({
+      id: fechaId,
+      fecha: fechaStr,
+      items: JSON.parse(JSON.stringify(pedidoFinal)),
+      totalItems: pedidoFinal.length,
+      totalUnidades: totalUnidades
+    });
+
+    if (historialPedidos.length > 50) historialPedidos.pop();
+
+    guardarHistorial();
+    actualizarEstadisticasBadge();
+    if (notificar) alert("¡Pedido guardado con éxito en tu historial!");
+  }
+
+  function renderizarHistorial() {
+    const cont = document.getElementById("contenedorHistorial");
+    if (historialPedidos.length === 0) {
+      cont.innerHTML = "<p style='color: var(--text-muted); font-style: italic;'>Aún no hay pedidos guardados en el historial.</p>";
+      return;
+    }
+
+    let html = "";
+    historialPedidos.forEach((h, idx) => {
+      html += `
+        <div class="card-box" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <strong>📅 ${h.fecha}</strong><br>
+            <small style="color: var(--text-muted);">${h.totalItems} productos diferentes (${h.totalUnidades || h.totalItems} unidades totales)</small>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-outline" style="font-size: 12px; padding: 5px 10px;" onclick="verDetalleHistorial(${idx})">👁️ Ver</button>
+            <button class="btn btn-outline" style="font-size: 12px; padding: 5px 10px;" onclick="cargarPedidoDeHistorial(${idx})">🔄 Reutilizar</button>
+            <button class="btn btn-danger" style="font-size: 12px; padding: 5px 8px;" onclick="eliminarPedidoHistorial(${idx})">🗑️</button>
+          </div>
+        </div>
+      `;
+    });
+    cont.innerHTML = html;
+  }
+
+  function verDetalleHistorial(idx) {
+    const h = historialPedidos[idx];
+    document.getElementById("tituloDetalleHistorial").innerText = `Pedido del ${h.fecha}`;
+    let html = `<table><tr><th>Categoría</th><th>Habitación</th><th>Producto</th><th>Cant.</th></tr>`;
+    h.items.forEach(it => {
+      html += `<tr><td>${it.categoria}</td><td>📍 ${it.habitacion || 'General'}</td><td>${it.nombre}</td><td>${it.cantidad} ${it.unidad || ''}</td></tr>`;
+    });
+    html += `</table>`;
+    document.getElementById("cuerpoDetalleHistorial").innerHTML = html;
+    document.getElementById("modalDetalleHistorial").style.display = "flex";
+  }
+
+  function cerrarModalDetalle() {
+    document.getElementById("modalDetalleHistorial").style.display = "none";
+  }
+
+  function cargarPedidoDeHistorial(idx) {
+    if (confirm("¿Cargar los productos de este pedido en la lista actual?")) {
+      pedidoFinal = JSON.parse(JSON.stringify(historialPedidos[idx].items));
+      cambiarPestana('checklist');
+      finalizarRevisionDirecta();
+    }
+  }
+
+  function eliminarPedidoHistorial(idx) {
+    if (confirm("¿Eliminar este registro del historial?")) {
+      historialPedidos.splice(idx, 1);
+      guardarHistorial();
+      actualizarEstadisticasBadge();
+      renderizarHistorial();
+    }
+  }
+
+  // --- ESTADÍSTICAS ---
+  function renderizarEstadisticas() {
+    const cont = document.getElementById("contenedorEstadisticas");
+    if (historialPedidos.length === 0) {
+      cont.innerHTML = "<p style='color: var(--text-muted); font-style: italic;'>Las estadísticas se generarán automáticamente a medida que vayas guardando pedidos semanales.</p>";
+      return;
+    }
+
+    const conteoProductos = {};
+    let totalItemsPedidos = 0;
+
+    historialPedidos.forEach(h => {
+      h.items.forEach(it => {
+        totalItemsPedidos += it.cantidad;
+        if (!conteoProductos[it.nombre]) {
+          conteoProductos[it.nombre] = { veces: 0, cantidadTotal: 0, unidad: it.unidad, cat: it.categoria, hab: it.habitacion };
+        }
+        conteoProductos[it.nombre].veces += 1;
+        conteoProductos[it.nombre].cantidadTotal += it.cantidad;
+      });
+    });
+
+    const topProductos = Object.entries(conteoProductos)
+      .sort((a, b) => b.veces - a.veces)
+      .slice(0, 8);
+
+    const prodsNuncaPedidos = catalogo.filter(p => !conteoProductos[p.nombre]);
+
+    let html = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+        <div class="card-box" style="text-align: center;">
+          <div style="font-size: 22px; font-weight: bold; color: var(--primary);">${historialPedidos.length}</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Pedidos registrados</div>
+        </div>
+        <div class="card-box" style="text-align: center;">
+          <div style="font-size: 22px; font-weight: bold; color: var(--success);">${totalItemsPedidos}</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Unidades pedidas en total</div>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin-top:0;">🔥 Productos más pedidos (Top Rotación)</h3>
+        <table>
+          <tr><th>Producto</th><th>Frecuencia</th><th>Cant. Total</th></tr>
+          ${topProductos.map(([nombre, d]) => `
+            <tr>
+              <td>[${d.cat}] ${nombre} <small style="color:var(--text-muted);">(📍 ${d.hab || 'General'})</small></td>
+              <td>${d.veces} ${d.veces === 1 ? 'pedido' : 'pedidos'}</td>
+              <td>${d.cantidadTotal} ${d.unidad || ''}</td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+    `;
+
+    if (prodsNuncaPedidos.length > 0) {
+      html += `
+        <div class="card-box" style="margin-top: 12px;">
+          <h3 style="margin-top:0;">💤 Artículos sin rotación (${prodsNuncaPedidos.length})</h3>
+          <p style="font-size: 12px; color: var(--text-muted);">Productos en catálogo que nunca fueron incluidos en ningún pedido:</p>
+          <div style="max-height: 150px; overflow-y: auto; font-size: 12px;">
+            ${prodsNuncaPedidos.map(p => `• [${p.categoria} | 📍 ${p.habitacion || 'General'}] ${p.nombre}`).join('<br>')}
+          </div>
+        </div>
+      `;
+    }
+
+    cont.innerHTML = html;
+  }
+
+  // --- CARGA MASIVA DE EXCEL / CSV AL CATÁLOGO ---
+  function importarCatalogoExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+        if (json.length < 2) {
+          alert("La planilla no contiene suficientes filas.");
+          return;
+        }
+
+        const headers = json[0].map(h => String(h || "").toLowerCase().trim());
+        const colProd = headers.findIndex(h => h.includes("producto") || h.includes("nombre") || h.includes("articulo") || h.includes("descrip"));
+        const colCat = headers.findIndex(h => h.includes("cat") || h.includes("rubro"));
+        const colHab = headers.findIndex(h => h.includes("habitacion") || h.includes("sector") || h.includes("ubicacion") || h.includes("lugar") || h.includes("cuarto"));
+        const colCant = headers.findIndex(h => h.includes("cant") || h.includes("stock") || h.includes("pedir"));
+        const colUnidad = headers.findIndex(h => h.includes("unidad") || h.includes("present"));
+        const colCodigo = headers.findIndex(h => h.includes("cod") || h.includes("barra") || h.includes("ean"));
+
+        if (colProd === -1) {
+          alert("No se encontró una columna llamada 'Producto' o 'Nombre'. Verificá los encabezados de tu Excel.");
+          return;
+        }
+
+        let agregados = 0;
+        for (let i = 1; i < json.length; i++) {
+          const row = json[i];
+          const nombre = String(row[colProd] || "").trim();
+          if (!nombre) continue;
+
+          const categoria = colCat !== -1 && row[colCat] ? String(row[colCat]).trim() : "General";
+          const habitacion = colHab !== -1 && row[colHab] ? String(row[colHab]).trim() : "General";
+          const cantidad = colCant !== -1 && parseInt(row[colCant]) ? parseInt(row[colCant]) : 1;
+          const unidad = colUnidad !== -1 && row[colUnidad] ? String(row[colUnidad]).trim() : "Unidades";
+          const codigo = colCodigo !== -1 && row[colCodigo] ? String(row[colCodigo]).trim() : "";
+
+          const existente = catalogo.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+          if (!existente) {
+            catalogo.push({
+              id: Date.now() + i,
+              nombre,
+              categoria,
+              habitacion,
+              cantidadDefault: cantidad,
+              unidad,
+              codigo,
+              favorito: false
+            });
+            agregados++;
+          }
+        }
+
+        guardarTodo();
+        alert(`¡Carga masiva completada! Se importaron ${agregados} productos nuevos.`);
+      } catch (err) {
+        alert("Error al procesar el archivo Excel: " + err.message);
+      }
+      event.target.value = "";
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // --- EXPORTAR / IMPORTAR CATÁLOGO JSON ---
+  function exportarCatalogoJSON() {
+    const datosBackup = {
+      version: 3,
+      fechaExportacion: new Date().toISOString(),
+      catalogo,
+      coloresCategorias,
+      historialPedidos
+    };
+    const blob = new Blob([JSON.stringify(datosBackup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `catalogo_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importarCatalogoJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const datos = JSON.parse(e.target.result);
+        if (datos && Array.isArray(datos.catalogo)) {
+          if (confirm(`Se encontraron ${datos.catalogo.length} productos en el respaldo. ¿Restaurar catálogo completo?`)) {
+            catalogo = datos.catalogo;
+            catalogo.forEach(p => { if (!p.habitacion) p.habitacion = "General"; });
+            if (datos.coloresCategorias) coloresCategorias = datos.coloresCategorias;
+            if (datos.historialPedidos) historialPedidos = datos.historialPedidos;
+            guardarTodo();
+            guardarHistorial();
+            alert("¡Copia de seguridad restaurada exitosamente!");
+          }
+        } else {
+          alert("El archivo no tiene un formato JSON válido.");
+        }
+      } catch (err) {
+        alert("Error al leer el archivo JSON.");
+      }
+      event.target.value = "";
+    };
+    reader.readAsText(file);
+  }
+
+  // --- ESCÁNER DE CÓDIGO DE BARRAS ---
+  function abrirEscanerCamara() {
+    document.getElementById("modalEscaner").style.display = "flex";
+    document.getElementById("resultadoEscaner").innerText = "Iniciando cámara...";
+
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode("qr-reader");
+    }
+
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      (decodedText) => {
+        document.getElementById("resultadoEscaner").innerText = `Código detectado: ${decodedText}`;
+        procesarCodigoEscaneado(decodedText);
+        cerrarEscanerCamara();
+      },
+      (error) => { /* ignorar frames sin código */ }
+    ).catch(err => {
+      document.getElementById("resultadoEscaner").innerText = "No se pudo acceder a la cámara. Verificá los permisos.";
+    });
+  }
+
+  function cerrarEscanerCamara() {
+    if (html5QrCode && html5QrCode.isScanning) {
+      html5QrCode.stop().then(() => {
+        document.getElementById("modalEscaner").style.display = "none";
+      }).catch(() => {
+        document.getElementById("modalEscaner").style.display = "none";
+      });
+    } else {
+      document.getElementById("modalEscaner").style.display = "none";
+    }
+  }
+
+  function procesarCodigoEscaneado(codigo) {
+    const prod = catalogo.find(p => p.codigo === codigo);
+    if (prod) {
+      const cant = prompt(`Producto encontrado: [${prod.categoria} | 📍 ${prod.habitacion || 'General'}] ${prod.nombre}\n\nIngresá la cantidad a pedir:`, prod.cantidadDefault);
+      if (cant !== null) {
+        const cantNum = parseInt(cant) || prod.cantidadDefault;
+        const existente = pedidoFinal.find(p => p.nombre === prod.nombre);
+        if (existente) existente.cantidad = cantNum;
+        else pedidoFinal.push({ id: prod.id, nombre: prod.nombre, categoria: prod.categoria, habitacion: prod.habitacion || "General", cantidad: cantNum, unidad: prod.unidad });
+        
+        cambiarPestana('checklist');
+        finalizarRevisionDirecta();
+        alert(`¡Agregado: ${prod.nombre} (${cantNum} ${prod.unidad})!`);
+      }
+    } else {
+      if (confirm(`El código "${codigo}" no está asignado a ningún producto.\n\n¿Querés asignárselo a un producto del catálogo ahora?`)) {
+        cambiarPestana('catalogo');
+        document.getElementById("buscadorCatalogo").value = "";
+        renderizarCatalogo();
+        document.getElementById("nuevoCodigo").value = codigo;
+        alert("Escribí el nombre del producto para guardar este código de barras.");
+      }
+    }
+  }
+// --- Leer archivos en google sheets ---
+async function sincronizarDesdeGoogleSheets() {
+  const urlCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzxuHJuZDGCc_Sn4ZF_JaAbXxyznnD5KNdaRfz1ftEdAec1sjYBtc0uHfny3z1Y1_VC2PIs80UIVWm/pub?gid=2068166692&single=true&output=csv";
+  try {
+    const res = await fetch(urlCSV);
+    const textoCSV = await res.text();
+    const workbook = XLSX.read(textoCSV, { type: 'string' });
+    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+    // Se procesan las filas con la misma lógica de importación
+  } catch (e) {
+    console.error("Error al sincronizar con Google Sheets", e);
+  }
+}
+  // INICIALIZACIÓN
+  inicializarTema();
+  actualizarEstadisticasBadge();
+  actualizarSelectoresHabitacion();
+  actualizarSelectorAlcance();
+  renderizarPaletaAlta();
+  renderizarCatalogo();
+  sincronizarDesdeGoogleSheets();
+</script>
+
+</body>
+</html>
