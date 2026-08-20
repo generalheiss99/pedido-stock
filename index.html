@@ -1999,18 +1999,81 @@
     }
   }
 // --- Leer archivos en google sheets ---
-async function sincronizarDesdeGoogleSheets() {
-  const urlCSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzxuHJuZDGCc_Sn4ZF_JaAbXxyznnD5KNdaRfz1ftEdAec1sjYBtc0uHfny3z1Y1_VC2PIs80UIVWm/pub?gid=2068166692&single=true&output=csv";
-  try {
-    const res = await fetch(urlCSV);
-    const textoCSV = await res.text();
-    const workbook = XLSX.read(textoCSV, { type: 'string' });
-    const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
-    // Se procesan las filas con la misma lógica de importación
-  } catch (e) {
-    console.error("Error al sincronizar con Google Sheets", e);
+// --- SINCRONIZACIÓN MEJORADA CON GOOGLE SHEETS ---
+  async function sincronizarDesdeGoogleSheets() {
+    const URL_BASE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzxuHJuZDGCc_Sn4ZF_JaAbXxyznnD5KNdaRfz1ftEdAec1sjYBtc0uHfny3z1Y1_VC2PIs80UIVWm/pub?gid=2068166692&single=true&output=csv";
+    
+    // Agregamos anti-caché para que Google traiga los cambios inmediatos
+    const URL_CON_CACHE = `${URL_BASE}&_t=${Date.now()}`;
+
+    const URL_A_CONSULTAR = (location.protocol === "file:")
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(URL_CON_CACHE)}`
+      : URL_CON_CACHE;
+
+    try {
+      let respuesta = await fetch(URL_A_CONSULTAR);
+      if (!respuesta.ok && location.protocol !== "file:") {
+        respuesta = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(URL_CON_CACHE)}`);
+      }
+
+      if (!respuesta.ok) throw new Error("No se pudo descargar la planilla.");
+
+      const textoCSV = await respuesta.text();
+      const workbook = XLSX.read(textoCSV, { type: 'string' });
+      const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(primeraHoja, { header: 1 });
+
+      if (filas.length < 2) return;
+
+      // Normalizamos encabezados (sin tildes, minúsculas, sin espacios)
+      const limpiarTexto = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      const headers = filas[0].map(limpiarTexto);
+
+      const colProd = headers.findIndex(h => h.includes("producto") || h.includes("nombre") || h.includes("articulo"));
+      const colCat = headers.findIndex(h => h.includes("categoria") || h.includes("cat") || h.includes("rubro"));
+      const colSector = headers.findIndex(h => h.includes("sector") || h.includes("habitacion") || h.includes("ubicacion") || h.includes("lugar"));
+      const colCant = headers.findIndex(h => h.includes("cantidad") || h.includes("habitual") || h.includes("cant") || h.includes("stock"));
+      const colUnidad = headers.findIndex(h => h.includes("unidad") || h.includes("presentacion"));
+      const colCodigo = headers.findIndex(h => h.includes("cod") || h.includes("barra") || h.includes("ean"));
+
+      if (colProd === -1) {
+        console.warn("No se encontró la columna Producto. Encabezados leídos:", headers);
+        return;
+      }
+
+      const nuevoCatalogo = [];
+      for (let i = 1; i < filas.length; i++) {
+        const row = filas[i];
+        const nombre = String(row[colProd] || "").trim();
+        if (!nombre) continue;
+
+        const cat = colCat !== -1 && row[colCat] ? String(row[colCat]).trim() : "General";
+        const sector = colSector !== -1 && row[colSector] ? String(row[colSector]).trim() : "General";
+        const cant = colCant !== -1 && parseInt(row[colCant]) ? parseInt(row[colCant]) : 1;
+        const unidad = colUnidad !== -1 && row[colUnidad] ? String(row[colUnidad]).trim() : "Unidades";
+        const codigo = colCodigo !== -1 && row[colCodigo] ? String(row[colCodigo]).trim() : "";
+
+        nuevoCatalogo.push({
+          id: Date.now() + i,
+          nombre: nombre,
+          categoria: cat,
+          habitacion: sector, // Se guarda el Sector de tu planilla
+          cantidadDefault: cant,
+          unidad: unidad,
+          codigo: codigo,
+          favorito: false
+        });
+      }
+
+      if (nuevoCatalogo.length > 0) {
+        catalogo = nuevoCatalogo;
+        guardarTodo();
+        console.log(`✓ Sincronización completada: ${nuevoCatalogo.length} productos con sus sectores actualizados.`);
+      }
+    } catch (error) {
+      console.warn("Aviso al sincronizar con Google Sheets:", error.message);
+    }
   }
-}
   // INICIALIZACIÓN
   inicializarTema();
   actualizarEstadisticasBadge();
