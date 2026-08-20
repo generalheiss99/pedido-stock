@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Generador de Pedido Semanal</title>
+  
+  <!-- SheetJS para Excel (.xlsx) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- HTML5 QR Code / Barcode Scanner -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --card-alt: #f1f5f9;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --star: #eab308;
+    }
+
+    [data-theme="dark"] {
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-alt: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --star: #fde047;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+      transition: background-color 0.2s ease, color 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 780px;
+      background: var(--card);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      position: relative;
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .app-header h1 {
+      font-size: 20px;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .theme-toggle, .scanner-toggle {
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 18px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: 1px solid transparent;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-radius: 8px;
+      white-space: nowrap;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .card-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      padding: 9px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.85; }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-warning { background: var(--warning); color: white; }
+    .btn-secondary { background: var(--text-muted); color: white; }
+    .btn-outline { background: var(--card); border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--card-alt); }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      color: var(--text);
+      font-size: 14px;
+      margin-top: 4px;
+      margin-bottom: 8px;
+    }
+    input:focus, select:focus { outline: 2px solid var(--primary); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      margin-bottom: 4px;
+    }
+
+    .badge-room {
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .color-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .star-btn {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #94a3b8;
+      padding: 2px 4px;
+      line-height: 1;
+    }
+    .star-btn.active { color: var(--star); }
+
+    .color-swatch {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid var(--card);
+      outline: 1px solid var(--border);
+    }
+    .color-swatch.selected { outline: 2px solid var(--primary); }
+
+    .product-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      max-height: 420px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .product-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+    }
+    .product-item:last-child { border-bottom: none; }
+
+    .progress-bar-bg {
+      background: var(--card-alt);
+      border-radius: 4px;
+      height: 8px;
+      width: 100%;
+      margin: 12px 0;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      background: var(--primary);
+      height: 100%;
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px 10px;
+      text-align: left;
+    }
+    th { background: var(--card-alt); }
+
+    /* Resultados del buscador rápido */
+    .live-search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 280px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      margin-top: 4px;
+    }
+
+    .search-result-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+      transition: background 0.15s;
+    }
+    .search-result-item:hover { background: var(--card-alt); }
+    .search-result-item:last-child { border-bottom: none; }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+    .modal-content {
+      background: var(--card);
+      border-radius: 12px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+
+    .shortcuts-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    @media (max-width: 600px) {
+      .container { padding: 14px; }
+      .shortcuts-hint { display: none; }
+      .app-header h1 { font-size: 17px; }
+      .tab-btn { padding: 7px 10px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="app-header">
+    <h1>📦 Pedido Semanal</h1>
+    <div class="header-actions">
+      <button class="scanner-toggle" onclick="abrirEscanerCamara()" title="Escanear Código de Barras">📷 Escanear</button>
+      <button class="theme-toggle" id="btnThemeToggle" onclick="alternarTema()" title="Cambiar tema">🌙</button>
+    </div>
+  </div>
+
+  <div class="nav-tabs">
+    <button class="tab-btn active" id="tabChecklistBtn" onclick="cambiarPestana('checklist')">
+      📋 Revisión / Pedido <span id="badgeBorradorTab" style="display:none; background: var(--warning); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 10px; margin-left: 4px;">0</span>
+    </button>
+    <button class="tab-btn" id="tabCatalogoBtn" onclick="cambiarPestana('catalogo')">🎨 Categorías y Catálogo</button>
+    <button class="tab-btn" id="tabHistorialBtn" onclick="cambiarPestana('historial')">📜 Historial</button>
+    <button class="tab-btn" id="tabEstadisticasBtn" onclick="cambiarPestana('estadisticas')">📊 Estadísticas</button>
+  </div>
+
+  <!-- PESTAÑA 1: REVISIÓN / PEDIDO -->
+  <div id="vistaChecklist">
+    <!-- PANTALLA INICIAL DE REVISIÓN -->
+    <div id="pantallaInicio">
+
+      <!-- BANNER DE PEDIDO PENDIENTE EN GOOGLE SHEETS -->
+      <div id="bannerBorradorActivo" class="card-box" style="display:none; border-left: 5px solid var(--warning); background: var(--card-alt); padding: 14px; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 16px;">☁️</span>
+              <strong style="font-size: 15px; color: var(--warning);">Pedido Pendiente en Google Sheets</strong>
+            </div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-top: 3px;">
+              Hay <strong id="cantItemsBorrador" style="color: var(--text);">0</strong> productos cargados en la planilla compartida.
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-warning" style="padding: 8px 14px; font-size: 13px;" onclick="finalizarRevisionDirecta()">
+              ▶️ Ver / Sumar Productos
+            </button>
+            <button class="btn btn-outline" style="padding: 8px 12px; font-size: 13px;" onclick="vaciarPedido()" title="Vaciar pedido">
+              🗑️ Vaciar
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h2 style="margin-top: 0;">Iniciar Control de Stock</h2>
+        <p style="color: var(--text-muted); font-size: 14px;">Elegí qué productos querés chequear hoy:</p>
+        
+        <label style="font-size: 13px; font-weight: 600;">Alcance de la revisión:</label>
+        <select id="filtroAlcanceRevision" style="font-size: 15px; padding: 10px;"></select>
+
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 15px;">
+          <button class="btn btn-primary" style="padding: 14px; font-size: 15px;" onclick="iniciarRevision()">
+            🚀 Iniciar Revisión Paso a Paso
+          </button>
+          <button class="btn btn-outline" style="padding: 12px; font-size: 14px;" onclick="finalizarRevisionDirecta()">
+            ⚡ Ir Directo al Resumen / Carga Rápida
+          </button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; text-align: center;">
+        <div class="card-box" style="padding: 10px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--primary);" id="statTotalItems">0</div>
+          <div style="font-size: 11px; color: var(--text-muted);">En Google Sheets</div>
+        </div>
+        <div class="card-box" style="padding: 10px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--star);" id="statTotalFavs">0</div>
+          <div style="font-size: 11px; color: var(--text-muted);">Favoritos ⭐</div>
+        </div>
+        <div class="card-box" style="padding: 10px;">
+          <div style="font-size: 18px; font-weight: bold; color: var(--success);" id="statTotalPedidos">0</div>
+          <div style="font-size: 11px; color: var(--text-muted);">En Historial</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANTALLA PASO A PASO -->
+    <div id="pantallaRevision" style="display:none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--text-muted); flex-wrap: wrap; gap: 6px;">
+        <span id="contadorProgreso">Producto 1 de X</span>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn btn-warning" style="padding: 4px 10px; font-size: 12px;" onclick="volverAlInicioRevision()" title="Guardar y salir">⏸️ Salir</button>
+          <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="finalizarRevision()">🏁 Ver Resumen</button>
+        </div>
+      </div>
+      
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="barraProgreso"></div>
+      </div>
+
+      <div class="card-box" style="position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 6px;">
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span class="badge" id="catProductoActual">Categoría</span>
+            <span class="badge badge-room" id="habProductoActual">📍 Sector</span>
+          </div>
+          <button class="star-btn" id="starProductoActual" onclick="toggleFavoritoActual()" title="Marcar como favorito">⭐</button>
+        </div>
+
+        <h2 id="nombreProductoActual" style="margin: 6px 0 6px 0;">Nombre Producto</h2>
+        
+        <div style="display: flex; gap: 12px; color: var(--text-muted); font-size: 13px; margin-bottom: 15px; flex-wrap: wrap;">
+          <span>Cant. habitual: <strong id="cantSugeridaActual" style="color: var(--text);">0</strong></span>
+          <span id="unidadProductoActual">Unidad: Unidades</span>
+        </div>
+
+        <!-- MODO FALTA STOCK / INGRESO DE CANTIDAD -->
+        <div id="bloqueCantidad" style="display:none; background: var(--card-alt); padding: 14px; border-radius: 8px; margin-bottom: 15px;">
+          <label for="inputCantidad"><strong>Cantidad a pedir:</strong></label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="number" id="inputCantidad" min="1" step="1" style="font-size: 16px; font-weight: bold; flex: 1;">
+            <span id="labelUnidadInput" style="font-size: 13px; color: var(--text-muted); white-space: nowrap;"></span>
+          </div>
+
+          <!-- CALCULADORA DE REPOSICIÓN -->
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">📐 Calculadora rápida de reposición:</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <div>
+                <span style="font-size: 11px;">Tengo ahora:</span>
+                <input type="number" id="calcStockActual" placeholder="Ej. 2" min="0" oninput="calcularReposicion()" style="margin: 2px 0;">
+              </div>
+              <div>
+                <span style="font-size: 11px;">Stock ideal:</span>
+                <input type="number" id="calcStockIdeal" placeholder="Ej. 10" min="0" oninput="calcularReposicion()" style="margin: 2px 0;">
+              </div>
+            </div>
+          </div>
+
+          <button class="btn btn-danger" style="width: 100%; margin-top: 10px; padding: 11px;" onclick="confirmarFaltaStock()">Confirmar y Agregar al Pedido</button>
+        </div>
+
+        <div class="btn-group" id="botonesPrincipales">
+          <button class="btn btn-success" style="flex: 1; padding: 14px; font-size: 15px;" onclick="marcarConStock()">✓ Tengo Stock</button>
+          <button class="btn btn-danger" style="flex: 1; padding: 14px; font-size: 15px;" onclick="mostrarInputCantidad()">✗ Falta Stock</button>
+        </div>
+
+        <div class="shortcuts-hint">
+          💡 <strong>Atajos:</strong> [S] o [Espacio] = Tengo stock · [N] o [Enter] = Falta stock · [←] = Volver · [F] = Finalizar
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn btn-secondary" style="font-size: 13px;" onclick="productoAnterior()" id="btnAnterior">← Volver</button>
+        <button class="btn btn-outline" style="font-size: 13px;" onclick="finalizarRevision()">Ver Resumen (<span id="cantEnPedidoBadge">0</span>)</button>
+      </div>
+    </div>
+
+    <!-- PANTALLA RESUMEN / EXPORTACIÓN -->
+    <div id="pantallaResumen" style="display:none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 8px;">
+        <h2 style="margin:0;">Resumen del Pedido</h2>
+        <span class="badge" style="background: var(--warning); color: #fff; font-size: 12px; padding: 4px 10px;" id="badgeEstadoSyncNube">
+          ☁️ Conectado a Sheets
+        </span>
+      </div>
+      <p style="color: var(--text-muted); font-size: 13px; margin: 0 0 12px 0;">Cualquier producto sumado se sincroniza en vivo con la solapa <em>Pedido_Pendiente</em> de Google Sheets:</p>
+
+      <!-- BUSCADOR INTERACTIVO Y CARGA RÁPIDA -->
+      <div class="card-box" style="padding: 14px; margin-bottom: 14px; background: var(--card-alt); position: relative;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+          <label style="font-size: 13px; font-weight: 700;">⚡ Buscador y Carga Rápida de Productos:</label>
+          <select id="filtroHabitacionResumen" onchange="filtrarProductosBuscadorResumen()" style="width: auto; margin: 0; padding: 4px 8px; font-size: 12px;">
+            <option value="">📍 Todos los sectores</option>
+          </select>
+        </div>
+
+        <div style="position: relative;">
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <input type="text" id="inputBuscadorResumen" placeholder="🔍 Escribí producto, categoría, sector o código..." oninput="filtrarProductosBuscadorResumen()" onfocus="filtrarProductosBuscadorResumen()" onkeydown="manejarKeydownBuscadorResumen(event)" style="margin: 0; padding: 10px 12px; font-size: 14px; flex: 1;">
+            <button class="btn btn-outline" onclick="limpiarBuscadorResumen()" title="Limpiar búsqueda" style="padding: 9px 12px;">✕</button>
+          </div>
+          <!-- Desplegable interactivo de resultados -->
+          <div id="resultadosBuscadorResumen" class="live-search-results" style="display: none;"></div>
+        </div>
+      </div>
+
+      <!-- FILTRO DENTRO DE LA TABLA DE RESUMEN -->
+      <input type="text" id="filtroTextoResumen" placeholder="🔍 Filtrar productos en la tabla..." oninput="renderizarTablaResumen()" style="margin-bottom: 8px;">
+
+      <div id="contenedorTabla"></div>
+
+      <div class="btn-group">
+        <button class="btn btn-primary" style="flex: 1.2; padding: 12px;" onclick="descargarExcel()">📥 Descargar Excel (.xlsx)</button>
+        <button class="btn btn-success" style="flex: 1; padding: 12px;" onclick="enviarWhatsAppModal()">💬 WhatsApp</button>
+        <button class="btn btn-secondary" onclick="copiarTexto()">📋 Copiar</button>
+      </div>
+
+      <div class="btn-group" style="margin-top: 10px;">
+        <button class="btn btn-outline" style="flex: 1;" onclick="guardarEnHistorial(true)">💾 Guardar en Historial</button>
+        <button class="btn btn-outline" style="flex: 1;" onclick="volverAlInicioRevision()">🏠 Volver al Inicio</button>
+        <button class="btn btn-danger" style="padding: 8px 12px;" onclick="vaciarPedido()" title="Vaciar pedido">🗑️</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PESTAÑA 2: CATEGORÍAS Y CATÁLOGO (SOLO LECTURA Y COLORES) -->
+  <div id="vistaCatalogo" style="display:none;">
+    <h2>Categorías y Catálogo</h2>
+    
+    <!-- CONFIGURADOR DE COLORES POR CATEGORÍA -->
+    <div class="card-box">
+      <h3 style="margin-top: 0;">🎨 Colores de Categorías</h3>
+      <p style="font-size: 12px; color: var(--text-muted); margin-top: -4px;">Elegí el color visual para cada categoría de tu planilla:</p>
+      <div id="contenedorConfigColores" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;"></div>
+    </div>
+
+    <!-- LISTA DEL CATÁLOGO DE GOOGLE SHEETS -->
+    <div class="card-box" style="background: var(--card-alt);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+        <h3 style="margin: 0;">📋 Catálogo de Google Sheets</h3>
+        <button class="btn btn-outline" style="font-size: 12px; padding: 5px 10px;" onclick="sincronizarDesdeGoogleSheets(true)">🔄 Recargar Planilla</button>
+      </div>
+      <p style="font-size: 12px; color: var(--text-muted); margin: 0 0 10px 0;">
+        💡 Para agregar, modificar o dar de baja productos, hacelo directamente en tu archivo de Google Sheets.
+      </p>
+
+      <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+        <input type="text" id="buscadorCatalogo" placeholder="🔍 Buscar producto, categoría, sector..." oninput="renderizarCatalogo()" style="flex: 1; margin:0; min-width: 180px;">
+        <select id="filtroHabitacionCatalogo" onchange="renderizarCatalogo()" style="width: auto; margin:0; font-size: 12px;">
+          <option value="">📍 Todos los sectores</option>
+        </select>
+        <button class="btn btn-outline" id="btnFiltroFavsCat" onclick="toggleFiltroFavsCatalogo()" style="font-size: 12px; white-space: nowrap;">⭐ Solo Favoritos</button>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 12px; color: var(--text-muted);">Mostrando <strong id="totalCatalogo">0</strong> artículos</span>
+      </div>
+
+      <ul class="product-list" id="listaCatalogo"></ul>
+    </div>
+  </div>
+
+  <!-- PESTAÑA 3: HISTORIAL DE PEDIDOS -->
+  <div id="vistaHistorial" style="display:none;">
+    <h2>Historial de Pedidos</h2>
+    <p style="color: var(--text-muted); font-size: 13px;">Registro de pedidos semanales archivados:</p>
+    <div id="contenedorHistorial"></div>
+  </div>
+
+  <!-- PESTAÑA 4: ESTADÍSTICAS -->
+  <div id="vistaEstadisticas" style="display:none;">
+    <h2>Estadísticas de Consumo y Rotación</h2>
+    <div id="contenedorEstadisticas"></div>
+  </div>
+</div>
+
+<!-- MODAL ESCÁNER CÓDIGO DE BARRAS -->
+<div class="modal-overlay" id="modalEscaner">
+  <div class="modal-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h3 style="margin:0;">📷 Escanear Código de Barras</h3>
+      <button class="btn btn-outline" style="padding: 4px 8px;" onclick="cerrarEscanerCamara()">✕</button>
+    </div>
+    <div id="qr-reader" style="width: 100%;"></div>
+    <div id="resultadoEscaner" style="margin-top: 10px; font-size: 13px; color: var(--text-muted); text-align: center;">Apuntá con la cámara al código de barras.</div>
+  </div>
+</div>
+
+<!-- MODAL WHATSAPP -->
+<div class="modal-overlay" id="modalWhatsApp">
+  <div class="modal-content">
+    <h3 style="margin-top:0;">💬 Enviar Pedido por WhatsApp</h3>
+    <label style="font-size: 12px; font-weight: 600;">Número de teléfono / Proveedor (opcional con código de país, ej. 54911xxxxxxxx):</label>
+    <input type="tel" id="inputNumeroWhatsApp" placeholder="Ej: 5491112345678">
+    <small style="color: var(--text-muted); display: block; margin-bottom: 12px;">Podés dejarlo vacío para elegir el contacto directamente en WhatsApp.</small>
+
+    <div class="btn-group">
+      <button class="btn btn-success" style="flex: 1;" onclick="confirmarEnviarWhatsApp()">Abrir WhatsApp</button>
+      <button class="btn btn-outline" onclick="cerrarModalWhatsApp()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE DE HISTORIAL -->
+<div class="modal-overlay" id="modalDetalleHistorial">
+  <div class="modal-content">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <h3 id="tituloDetalleHistorial" style="margin:0;">Detalle del Pedido</h3>
+      <button class="btn btn-outline" style="padding: 4px 8px;" onclick="cerrarModalDetalle()">✕</button>
+    </div>
+    <div id="cuerpoDetalleHistorial"></div>
+  </div>
+</div>
+
+<script>
+  // ==========================================
+  // CONFIGURACIÓN DE CONEXIÓN CON GOOGLE SHEETS
+  // ==========================================
+  // 1. Enlace CSV público de tu catálogo:
+  const URL_GOOGLE_SHEETS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzxuHJuZDGCc_Sn4ZF_JaAbXxyznnD5KNdaRfz1ftEdAec1sjYBtc0uHfny3z1Y1_VC2PIs80UIVWm/pub?gid=2068166692&single=true&output=csv";
+
+  // 2. Enlace de tu Web App de Apps Script (Paso 1):
+  const URL_APPS_SCRIPT = "PEGAR_AQUI_TU_URL_DE_APPS_SCRIPT_EXEC";
+
+  const PALETA_COLORES = [
+    "#2563eb", "#16a34a", "#d97706", "#dc2626",
+    "#9333ea", "#0891b2", "#e11d48", "#475569"
+  ];
+
+  let catalogo = JSON.parse(localStorage.getItem("catalogo_productos")) || [];
+  let coloresCategorias = JSON.parse(localStorage.getItem("colores_categorias")) || {};
+  let favoritosLocales = JSON.parse(localStorage.getItem("favoritos_locales")) || {};
+  let historialPedidos = JSON.parse(localStorage.getItem("historial_pedidos")) || [];
+
+  let pedidoFinal = [];
+  let listaRevisionActual = [];
+  let indiceActual = 0;
+  let filtroSoloFavoritosCat = false;
+  let html5QrCode = null;
+
+  function inicializarTema() {
+    const temaGuardado = localStorage.getItem("tema_app");
+    if (temaGuardado === "dark" || (!temaGuardado && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      document.documentElement.setAttribute("data-theme", "dark");
+      document.getElementById("btnThemeToggle").innerText = "☀️";
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      document.getElementById("btnThemeToggle").innerText = "🌙";
+    }
+  }
+
+  function alternarTema() {
+    const esOscuro = document.documentElement.getAttribute("data-theme") === "dark";
+    if (esOscuro) {
+      document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("tema_app", "light");
+      document.getElementById("btnThemeToggle").innerText = "🌙";
+    } else {
+      document.documentElement.setAttribute("data-theme", "dark");
+      localStorage.setItem("tema_app", "dark");
+      document.getElementById("btnThemeToggle").innerText = "☀️";
+    }
+  }
+
+  // --- SINCRONIZACIÓN DEL PEDIDO PENDIENTE EN GOOGLE SHEETS ---
+  async function sincronizarPedidoPendienteDesdeNube() {
+    if (!URL_APPS_SCRIPT || URL_APPS_SCRIPT.includes("PEGAR_AQUI")) {
+      // Fallback a localStorage si aún no pegaron la URL de Apps Script
+      pedidoFinal = JSON.parse(localStorage.getItem("pedido_borrador_standby")) || [];
+      actualizarBadgesBorrador();
+      renderizarTablaResumen();
+      return;
+    }
+
+    try {
+      const res = await fetch(`${URL_APPS_SCRIPT}?action=getPedido`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.status === "ok" && Array.isArray(json.items)) {
+          pedidoFinal = json.items;
+          actualizarBadgesBorrador();
+          renderizarTablaResumen();
+          console.log(`✓ Pedido pendiente cargado desde Google Sheets (${pedidoFinal.length} productos).`);
+        }
+      }
+    } catch (err) {
+      console.warn("No se pudo cargar el pedido pendiente de Google Sheets, usando respaldo local:", err);
+      pedidoFinal = JSON.parse(localStorage.getItem("pedido_borrador_standby")) || [];
+      actualizarBadgesBorrador();
+      renderizarTablaResumen();
+    }
+  }
+
+  async function guardarPedidoEnGoogleSheets() {
+    // Guardado local inmediato para respuesta instantánea
+    localStorage.setItem("pedido_borrador_standby", JSON.stringify(pedidoFinal));
+    actualizarBadgesBorrador();
+
+    if (!URL_APPS_SCRIPT || URL_APPS_SCRIPT.includes("PEGAR_AQUI")) return;
+
+    const badgeSync = document.getElementById("badgeEstadoSyncNube");
+    if (badgeSync) badgeSync.innerText = "⏳ Guardando en Sheets...";
+
+    try {
+      await fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          action: "guardarPedido",
+          items: pedidoFinal
+        })
+      });
+      if (badgeSync) badgeSync.innerText = "☁️ Guardado en Sheets";
+    } catch (err) {
+      if (badgeSync) badgeSync.innerText = "⚠️ Error de red (guardado local)";
+      console.warn("Error al enviar pedido a Google Sheets:", err);
+    }
+  }
+
+  async function vaciarPedidoEnGoogleSheets() {
+    pedidoFinal = [];
+    localStorage.removeItem("pedido_borrador_standby");
+    actualizarBadgesBorrador();
+    renderizarTablaResumen();
+    filtrarProductosBuscadorResumen();
+
+    if (!URL_APPS_SCRIPT || URL_APPS_SCRIPT.includes("PEGAR_AQUI")) return;
+
+    try {
+      await fetch(URL_APPS_SCRIPT, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ action: "vaciarPedido" })
+      });
+    } catch (err) {
+      console.warn("Error al vaciar en Sheets:", err);
+    }
+  }
+
+  function actualizarBadgesBorrador() {
+    const total = pedidoFinal.length;
+    
+    const badgeTab = document.getElementById("badgeBorradorTab");
+    if (badgeTab) {
+      if (total > 0) {
+        badgeTab.innerText = total;
+        badgeTab.style.display = "inline-block";
+      } else {
+        badgeTab.style.display = "none";
+      }
+    }
+
+    const banner = document.getElementById("bannerBorradorActivo");
+    const cantEl = document.getElementById("cantItemsBorrador");
+    if (banner && cantEl) {
+      if (total > 0) {
+        cantEl.innerText = total;
+        banner.style.display = "block";
+      } else {
+        banner.style.display = "none";
+      }
+    }
+
+    const cantBadge = document.getElementById("cantEnPedidoBadge");
+    if (cantBadge) cantBadge.innerText = total;
+  }
+
+  function volverAlInicioRevision() {
+    document.getElementById("pantallaRevision").style.display = "none";
+    document.getElementById("pantallaResumen").style.display = "none";
+    document.getElementById("pantallaInicio").style.display = "block";
+    actualizarBadgesBorrador();
+  }
+
+  function guardarTodo() {
+    localStorage.setItem("catalogo_productos", JSON.stringify(catalogo));
+    localStorage.setItem("colores_categorias", JSON.stringify(coloresCategorias));
+    localStorage.setItem("favoritos_locales", JSON.stringify(favoritosLocales));
+    actualizarEstadisticasBadge();
+    actualizarSelectoresHabitacion();
+    actualizarSelectorAlcance();
+    renderizarConfigColores();
+    renderizarCatalogo();
+    actualizarBadgesBorrador();
+  }
+
+  function guardarHistorial() {
+    localStorage.setItem("historial_pedidos", JSON.stringify(historialPedidos));
+  }
+
+  function obtenerColorCategoria(cat) {
+    if (!cat) cat = "General";
+    if (coloresCategorias[cat]) return coloresCategorias[cat];
+    const hash = cat.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const color = PALETA_COLORES[hash % PALETA_COLORES.length];
+    coloresCategorias[cat] = color;
+    localStorage.setItem("colores_categorias", JSON.stringify(coloresCategorias));
+    return color;
+  }
+
+  function getEstiloBadge(colorHex) {
+    if (!colorHex) colorHex = "#2563eb";
+    return `background-color: ${colorHex}18; color: ${colorHex}; border: 1px solid ${colorHex}45;`;
+  }
+
+  function cambiarPestana(tab) {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}Btn`).classList.add("active");
+    
+    document.getElementById("vistaChecklist").style.display = tab === 'checklist' ? 'block' : 'none';
+    document.getElementById("vistaCatalogo").style.display = tab === 'catalogo' ? 'block' : 'none';
+    document.getElementById("vistaHistorial").style.display = tab === 'historial' ? 'block' : 'none';
+    document.getElementById("vistaEstadisticas").style.display = tab === 'estadisticas' ? 'block' : 'none';
+
+    if (tab === 'catalogo') {
+      renderizarConfigColores();
+      renderizarCatalogo();
+    } else if (tab === 'historial') {
+      renderizarHistorial();
+    } else if (tab === 'estadisticas') {
+      renderizarEstadisticas();
+    } else if (tab === 'checklist') {
+      actualizarSelectorAlcance();
+      actualizarSelectoresHabitacion();
+      actualizarBadgesBorrador();
+    }
+  }
+
+  function obtenerCategoriasUnicas() {
+    return [...new Set(catalogo.map(p => (p.categoria || "").trim()).filter(Boolean))];
+  }
+
+  function obtenerHabitacionesUnicas() {
+    return [...new Set(catalogo.map(p => (p.habitacion || "General").trim()).filter(Boolean))];
+  }
+
+  function actualizarEstadisticasBadge() {
+    document.getElementById("statTotalItems").innerText = catalogo.length;
+    document.getElementById("statTotalFavs").innerText = catalogo.filter(p => p.favorito).length;
+    document.getElementById("statTotalPedidos").innerText = historialPedidos.length;
+  }
+
+  function actualizarSelectoresHabitacion() {
+    const habs = obtenerHabitacionesUnicas();
+
+    const selCat = document.getElementById("filtroHabitacionCatalogo");
+    if (selCat) {
+      const valActual = selCat.value;
+      selCat.innerHTML = '<option value="">📍 Todos los sectores</option>';
+      habs.forEach(h => {
+        const opt = document.createElement("option");
+        opt.value = h;
+        opt.innerText = `📍 ${h}`;
+        selCat.appendChild(opt);
+      });
+      selCat.value = valActual || "";
+    }
+
+    const selRes = document.getElementById("filtroHabitacionResumen");
+    if (selRes) {
+      const valActual = selRes.value;
+      selRes.innerHTML = '<option value="">📍 Todos los sectores</option>';
+      habs.forEach(h => {
+        const opt = document.createElement("option");
+        opt.value = h;
+        opt.innerText = `📍 ${h}`;
+        selRes.appendChild(opt);
+      });
+      selRes.value = valActual || "";
+    }
+  }
+
+  function actualizarSelectorAlcance() {
+    const sel = document.getElementById("filtroAlcanceRevision");
+    const valActual = sel.value;
+    sel.innerHTML = `
+      <option value="todos">🌐 Todo el catálogo (${catalogo.length} productos)</option>
+      <option value="favoritos">⭐ Solo Favoritos / Críticos (${catalogo.filter(p=>p.favorito).length})</option>
+    `;
+
+    const habs = obtenerHabitacionesUnicas();
+    if (habs.length > 0) {
+      const optGroupHab = document.createElement("optgroup");
+      optGroupHab.label = "📍 Por Sector";
+      habs.forEach(h => {
+        const cant = catalogo.filter(p => (p.habitacion || "General") === h).length;
+        const opt = document.createElement("option");
+        opt.value = `hab_${h}`;
+        opt.innerText = `📍 Sector: ${h} (${cant})`;
+        optGroupHab.appendChild(opt);
+      });
+      sel.appendChild(optGroupHab);
+    }
+
+    const cats = obtenerCategoriasUnicas();
+    if (cats.length > 0) {
+      const optGroupCat = document.createElement("optgroup");
+      optGroupCat.label = "🏷️ Por Categoría";
+      cats.forEach(cat => {
+        const cant = catalogo.filter(p => p.categoria === cat).length;
+        const opt = document.createElement("option");
+        opt.value = `cat_${cat}`;
+        opt.innerText = `🏷️ Categoría: ${cat} (${cant})`;
+        optGroupCat.appendChild(opt);
+      });
+      sel.appendChild(optGroupCat);
+    }
+
+    if (valActual) sel.value = valActual;
+  }
+
+  // --- CONFIGURACIÓN DE COLORES POR CATEGORÍA ---
+  function renderizarConfigColores() {
+    const cont = document.getElementById("contenedorConfigColores");
+    if (!cont) return;
+    cont.innerHTML = "";
+
+    const cats = obtenerCategoriasUnicas();
+    if (cats.length === 0) {
+      cont.innerHTML = "<small style='color:var(--text-muted);'>No hay categorías cargadas.</small>";
+      return;
+    }
+
+    cats.forEach(cat => {
+      const color = obtenerColorCategoria(cat);
+      const div = document.createElement("div");
+      div.style = "display: flex; align-items: center; justify-content: space-between; background: var(--card-alt); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);";
+      div.innerHTML = `
+        <span style="font-size: 13px; font-weight: 600;">${cat}</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span class="color-dot" style="background-color: ${color}; width: 14px; height: 14px;"></span>
+          <input type="color" value="${color}" style="width: 26px; height: 26px; padding: 0; border: none; cursor: pointer; background: none;" onchange="cambiarColorCategoriaDirecto('${cat.replace(/'/g, "\\'")}', this.value)">
+        </div>
+      `;
+      cont.appendChild(div);
+    });
+  }
+
+  function cambiarColorCategoriaDirecto(cat, nuevoColor) {
+    coloresCategorias[cat] = nuevoColor;
+    guardarTodo();
+  }
+
+  function renderizarCatalogo() {
+    const lista = document.getElementById("listaCatalogo");
+    if (!lista) return;
+    lista.innerHTML = "";
+
+    const filtroTexto = (document.getElementById("buscadorCatalogo")?.value || "").toLowerCase().trim();
+    const filtroHab = (document.getElementById("filtroHabitacionCatalogo")?.value || "").trim();
+
+    let filtrados = catalogo.filter(p => {
+      if (filtroSoloFavoritosCat && !p.favorito) return false;
+      if (filtroHab && (p.habitacion || "General") !== filtroHab) return false;
+      if (!filtroTexto) return true;
+      return p.nombre.toLowerCase().includes(filtroTexto) ||
+             p.categoria.toLowerCase().includes(filtroTexto) ||
+             (p.habitacion && p.habitacion.toLowerCase().includes(filtroTexto)) ||
+             (p.codigo && p.codigo.toLowerCase().includes(filtroTexto));
+    });
+
+    document.getElementById("totalCatalogo").innerText = `${filtrados.length} de ${catalogo.length}`;
+
+    filtrados.forEach((prod) => {
+      const colorProd = obtenerColorCategoria(prod.categoria);
+      const li = document.createElement("li");
+      li.className = "product-item";
+      li.innerHTML = `
+        <div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <button class="star-btn ${prod.favorito ? 'active' : ''}" onclick="toggleFavoritoPorNombre('${prod.nombre.replace(/'/g, "\\'")}')">⭐</button>
+            <span class="badge" style="${getEstiloBadge(colorProd)}">
+              <span class="color-dot" style="background-color: ${colorProd}; margin-right: 5px;"></span>${prod.categoria}
+            </span>
+            <span class="badge badge-room">📍 ${prod.habitacion || 'General'}</span>
+            <strong>${prod.nombre}</strong>
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-left: 26px; margin-top: 2px;">
+            Habitual: <strong>${prod.cantidadDefault} ${prod.unidad}</strong>
+          </div>
+        </div>
+      `;
+      lista.appendChild(li);
+    });
+  }
+
+  function toggleFiltroFavsCatalogo() {
+    filtroSoloFavoritosCat = !filtroSoloFavoritosCat;
+    const btn = document.getElementById("btnFiltroFavsCat");
+    btn.classList.toggle("btn-primary", filtroSoloFavoritosCat);
+    btn.classList.toggle("btn-outline", !filtroSoloFavoritosCat);
+    renderizarCatalogo();
+  }
+
+  function toggleFavoritoPorNombre(nombre) {
+    favoritosLocales[nombre] = !favoritosLocales[nombre];
+    catalogo.forEach(p => {
+      if (p.nombre === nombre) p.favorito = !!favoritosLocales[nombre];
+    });
+    guardarTodo();
+  }
+
+  function toggleFavoritoActual() {
+    if (!listaRevisionActual[indiceActual]) return;
+    const prodRev = listaRevisionActual[indiceActual];
+    toggleFavoritoPorNombre(prodRev.nombre);
+    document.getElementById("starProductoActual").classList.toggle("active", prodRev.favorito);
+  }
+
+  // --- REVISIÓN SEMANAL ---
+  function iniciarRevision() {
+    if (catalogo.length === 0) {
+      alert("No hay productos cargados desde Google Sheets.");
+      return;
+    }
+
+    const alcance = document.getElementById("filtroAlcanceRevision").value;
+    if (alcance === "todos") {
+      listaRevisionActual = [...catalogo];
+    } else if (alcance === "favoritos") {
+      listaRevisionActual = catalogo.filter(p => p.favorito);
+      if (listaRevisionActual.length === 0) {
+        alert("No tenés productos marcados como favoritos ⭐.");
+        return;
+      }
+    } else if (alcance.startsWith("hab_")) {
+      const habSeleccionada = alcance.replace("hab_", "");
+      listaRevisionActual = catalogo.filter(p => (p.habitacion || "General") === habSeleccionada);
+    } else if (alcance.startsWith("cat_")) {
+      const catSeleccionada = alcance.replace("cat_", "");
+      listaRevisionActual = catalogo.filter(p => p.categoria === catSeleccionada);
+    }
+
+    if (listaRevisionActual.length === 0) {
+      alert("No hay productos disponibles para este alcance.");
+      return;
+    }
+
+    indiceActual = 0;
+    document.getElementById("pantallaInicio").style.display = "none";
+    document.getElementById("pantallaResumen").style.display = "none";
+    document.getElementById("pantallaRevision").style.display = "block";
+    mostrarProducto();
+  }
+
+  function finalizarRevisionDirecta() {
+    document.getElementById("pantallaInicio").style.display = "none";
+    document.getElementById("pantallaRevision").style.display = "none";
+    finalizarRevision();
+  }
+
+  function mostrarProducto() {
+    const prod = listaRevisionActual[indiceActual];
+    const color = obtenerColorCategoria(prod.categoria);
+
+    const badgeEl = document.getElementById("catProductoActual");
+    badgeEl.innerText = prod.categoria;
+    badgeEl.style = getEstiloBadge(color);
+
+    document.getElementById("habProductoActual").innerText = `📍 ${prod.habitacion || 'General'}`;
+
+    document.getElementById("starProductoActual").classList.toggle("active", !!prod.favorito);
+    document.getElementById("nombreProductoActual").innerText = prod.nombre;
+    document.getElementById("cantSugeridaActual").innerText = prod.cantidadDefault;
+    document.getElementById("unidadProductoActual").innerText = `Unidad: ${prod.unidad}`;
+    document.getElementById("labelUnidadInput").innerText = prod.unidad;
+
+    document.getElementById("inputCantidad").value = prod.cantidadDefault;
+    document.getElementById("calcStockActual").value = "";
+    document.getElementById("calcStockIdeal").value = prod.cantidadDefault;
+
+    document.getElementById("bloqueCantidad").style.display = "none";
+    document.getElementById("botonesPrincipales").style.display = "flex";
+
+    const total = listaRevisionActual.length;
+    const porcentaje = Math.round((indiceActual / total) * 100);
+    document.getElementById("contadorProgreso").innerText = `Producto ${indiceActual + 1} de ${total}`;
+    document.getElementById("barraProgreso").style.width = `${porcentaje}%`;
+    document.getElementById("btnAnterior").style.visibility = indiceActual > 0 ? "visible" : "hidden";
+    
+    actualizarBadgesBorrador();
+  }
+
+  function calcularReposicion() {
+    const actual = parseInt(document.getElementById("calcStockActual").value) || 0;
+    const ideal = parseInt(document.getElementById("calcStockIdeal").value) || 0;
+    const diff = Math.max(1, ideal - actual);
+    document.getElementById("inputCantidad").value = diff;
+  }
+
+  function marcarConStock() {
+    pedidoFinal = pedidoFinal.filter(item => item.nombre !== listaRevisionActual[indiceActual].nombre);
+    guardarPedidoEnGoogleSheets();
+    avanzar();
+  }
+
+  function mostrarInputCantidad() {
+    document.getElementById("bloqueCantidad").style.display = "block";
+    document.getElementById("botonesPrincipales").style.display = "none";
+    document.getElementById("inputCantidad").focus();
+  }
+
+  function confirmarFaltaStock() {
+    const cant = parseInt(document.getElementById("inputCantidad").value);
+    if (!cant || cant <= 0) {
+      alert("Ingresá una cantidad válida mayor a 0.");
+      return;
+    }
+
+    const prod = listaRevisionActual[indiceActual];
+    pedidoFinal = pedidoFinal.filter(item => item.nombre !== prod.nombre);
+    pedidoFinal.push({
+      nombre: prod.nombre,
+      categoria: prod.categoria,
+      habitacion: prod.habitacion || "General",
+      cantidad: cant,
+      unidad: prod.unidad
+    });
+
+    guardarPedidoEnGoogleSheets();
+    avanzar();
+  }
+
+  function productoAnterior() {
+    if (indiceActual > 0) {
+      indiceActual--;
+      mostrarProducto();
+    }
+  }
+
+  function avanzar() {
+    indiceActual++;
+    if (indiceActual < listaRevisionActual.length) {
+      mostrarProducto();
+    } else {
+      finalizarRevision();
+    }
+  }
+
+  function finalizarRevision() {
+    document.getElementById("pantallaInicio").style.display = "none";
+    document.getElementById("pantallaRevision").style.display = "none";
+    document.getElementById("pantallaResumen").style.display = "block";
+
+    actualizarSelectoresHabitacion();
+    renderizarTablaResumen();
+    actualizarBadgesBorrador();
+  }
+
+  // --- BUSCADOR INTERACTIVO EN PANTALLA DE RESUMEN ---
+  function filtrarProductosBuscadorResumen() {
+    const contResultados = document.getElementById("resultadosBuscadorResumen");
+    const texto = (document.getElementById("inputBuscadorResumen")?.value || "").toLowerCase().trim();
+    const filtroHab = (document.getElementById("filtroHabitacionResumen")?.value || "").trim();
+
+    if (!texto && !filtroHab) {
+      contResultados.style.display = "none";
+      contResultados.innerHTML = "";
+      return;
+    }
+
+    let coincidencias = catalogo.filter(p => {
+      if (filtroHab && (p.habitacion || "General") !== filtroHab) return false;
+      if (!texto) return true;
+      return p.nombre.toLowerCase().includes(texto) ||
+             p.categoria.toLowerCase().includes(texto) ||
+             (p.habitacion && p.habitacion.toLowerCase().includes(texto));
+    });
+
+    if (coincidencias.length === 0) {
+      contResultados.innerHTML = `<div style="padding: 12px; font-size: 13px; color: var(--text-muted); text-align: center;">No se encontraron productos coincidentes.</div>`;
+      contResultados.style.display = "block";
+      return;
+    }
+
+    let html = "";
+    coincidencias.slice(0, 15).forEach(prod => {
+      const color = obtenerColorCategoria(prod.categoria);
+      const enPedido = pedidoFinal.find(p => p.nombre === prod.nombre);
+      const cantActual = enPedido ? enPedido.cantidad : prod.cantidadDefault;
+
+      html += `
+        <div class="search-result-item">
+          <div style="flex: 1; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+              <span class="badge" style="${getEstiloBadge(color)}; font-size: 10px; padding: 2px 6px;">${prod.categoria}</span>
+              <span class="badge badge-room" style="font-size: 10px; padding: 2px 6px;">📍 ${prod.habitacion || 'General'}</span>
+              <strong style="font-size: 13px;">${prod.nombre}</strong>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+              Habitual: ${prod.cantidadDefault} ${prod.unidad}
+              ${enPedido ? `· <strong style="color: var(--success);">✓ En Sheets: ${enPedido.cantidad}</strong>` : ''}
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+            <input type="number" id="cantRapida_${prod.id}" value="${cantActual}" min="1" style="width: 55px; margin: 0; padding: 4px 6px; font-size: 13px; text-align: center;">
+            <button class="btn ${enPedido ? 'btn-outline' : 'btn-primary'}" style="padding: 6px 10px; font-size: 12px;" onclick="sumarProductoDirecto(${prod.id})">
+              ${enPedido ? 'Actualizar' : '+ Agregar'}
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    contResultados.innerHTML = html;
+    contResultados.style.display = "block";
+  }
+
+  function sumarProductoDirecto(prodId) {
+    const prod = catalogo.find(p => p.id === prodId);
+    if (!prod) return;
+
+    const inputCant = document.getElementById(`cantRapida_${prodId}`);
+    const cant = parseInt(inputCant?.value) || prod.cantidadDefault || 1;
+
+    const existente = pedidoFinal.find(p => p.nombre === prod.nombre);
+    if (existente) {
+      existente.cantidad = cant;
+    } else {
+      pedidoFinal.push({
+        nombre: prod.nombre,
+        categoria: prod.categoria,
+        habitacion: prod.habitacion || "General",
+        cantidad: cant,
+        unidad: prod.unidad
+      });
+    }
+
+    guardarPedidoEnGoogleSheets();
+    renderizarTablaResumen();
+    filtrarProductosBuscadorResumen();
+  }
+
+  function manejarKeydownBuscadorResumen(e) {
+    if (e.key === "Enter") {
+      const primerBoton = document.querySelector("#resultadosBuscadorResumen .search-result-item button");
+      if (primerBoton) {
+        primerBoton.click();
+        e.preventDefault();
+      }
+    } else if (e.key === "Escape") {
+      limpiarBuscadorResumen();
+    }
+  }
+
+  function limpiarBuscadorResumen() {
+    const input = document.getElementById("inputBuscadorResumen");
+    if (input) input.value = "";
+    const cont = document.getElementById("resultadosBuscadorResumen");
+    if (cont) {
+      cont.style.display = "none";
+      cont.innerHTML = "";
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const cont = document.getElementById("resultadosBuscadorResumen");
+    const input = document.getElementById("inputBuscadorResumen");
+    const filtroHab = document.getElementById("filtroHabitacionResumen");
+    if (cont && !cont.contains(e.target) && e.target !== input && e.target !== filtroHab) {
+      cont.style.display = "none";
+    }
+  });
+
+  function renderizarTablaResumen() {
+    const cont = document.getElementById("contenedorTabla");
+    const filtro = (document.getElementById("filtroTextoResumen")?.value || "").toLowerCase().trim();
+
+    let itemsVisibles = pedidoFinal.filter(p => {
+      if (!filtro) return true;
+      return p.nombre.toLowerCase().includes(filtro) ||
+             p.categoria.toLowerCase().includes(filtro) ||
+             (p.habitacion && p.habitacion.toLowerCase().includes(filtro));
+    });
+
+    if (pedidoFinal.length === 0) {
+      cont.innerHTML = "<p style='color: var(--text-muted); font-style: italic; padding: 12px 0;'>No hay productos cargados en el pedido pendiente de Google Sheets.</p>";
+      return;
+    }
+
+    let html = `<table><tr><th>Categoría</th><th>Sector</th><th>Producto</th><th>Cantidad</th><th></th></tr>`;
+    itemsVisibles.forEach((p) => {
+      const realIdx = pedidoFinal.findIndex(item => item.nombre === p.nombre);
+      const color = obtenerColorCategoria(p.categoria);
+
+      html += `<tr>
+        <td><span class="badge" style="${getEstiloBadge(color)}">${p.categoria}</span></td>
+        <td><span class="badge badge-room">📍 ${p.habitacion || 'General'}</span></td>
+        <td><strong>${p.nombre}</strong></td>
+        <td>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <input type="number" value="${p.cantidad}" min="1" style="width: 70px; margin:0; padding:4px;" onchange="actualizarCantidadResumen(${realIdx}, this.value)">
+            <small style="color:var(--text-muted);">${p.unidad || ''}</small>
+          </div>
+        </td>
+        <td><button class="btn btn-danger" style="padding: 3px 7px; font-size: 11px;" onclick="quitarItemResumen(${realIdx})">✕</button></td>
+      </tr>`;
+    });
+    html += `</table>`;
+    cont.innerHTML = html;
+  }
+
+  function quitarItemResumen(index) {
+    pedidoFinal.splice(index, 1);
+    guardarPedidoEnGoogleSheets();
+    renderizarTablaResumen();
+    filtrarProductosBuscadorResumen();
+  }
+
+  function vaciarPedido() {
+    if (confirm("¿Querés vaciar todos los productos del pedido pendiente en Google Sheets?")) {
+      vaciarPedidoEnGoogleSheets();
+    }
+  }
+
+  function actualizarCantidadResumen(index, nuevaCant) {
+    pedidoFinal[index].cantidad = parseInt(nuevaCant) || 1;
+    guardarPedidoEnGoogleSheets();
+    renderizarTablaResumen();
+    filtrarProductosBuscadorResumen();
+  }
+
+  // --- ATAJOS DE TECLADO ---
+  window.addEventListener("keydown", (e) => {
+    const vistaRev = document.getElementById("pantallaRevision");
+    if (vistaRev && vistaRev.style.display === "block") {
+      const activeTag = document.activeElement.tagName.toLowerCase();
+      if (activeTag === "input" || activeTag === "textarea") {
+        if (e.key === "Enter") {
+          confirmarFaltaStock();
+          e.preventDefault();
+        }
+        return;
+      }
+
+      if (e.key === " " || e.key.toLowerCase() === "s") {
+        marcarConStock();
+        e.preventDefault();
+      } else if (e.key.toLowerCase() === "n" || e.key === "Enter") {
+        mostrarInputCantidad();
+        e.preventDefault();
+      } else if (e.key === "ArrowLeft") {
+        productoAnterior();
+        e.preventDefault();
+      } else if (e.key.toLowerCase() === "f" || e.key === "Escape") {
+        finalizarRevision();
+        e.preventDefault();
+      }
+    }
+  });
+
+  // --- EXPORTACIÓN EXCEL (.xlsx) ---
+  function descargarExcel() {
+    if (pedidoFinal.length === 0) {
+      alert("No hay productos en el pedido para exportar.");
+      return;
+    }
+
+    const hoy = new Date();
+    const yyyy = hoy.getFullYear();
+    const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+    const dd = String(hoy.getDate()).padStart(2, '0');
+    const fechaStr = `${yyyy}-${mm}-${dd}`;
+
+    const datosExcel = [
+      ["Fecha de pedido", fechaStr],
+      ["Categoría", "Sector", "Producto", "Cantidad", "Unidad"],
+      ...pedidoFinal.map(p => [p.categoria, p.habitacion || "General", p.nombre, p.cantidad, p.unidad || ""])
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(datosExcel);
+
+    ws['!cols'] = [{ wch: 18 }, { wch: 20 }, { wch: 38 }, { wch: 12 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, ws, "Pedido");
+    XLSX.writeFile(wb, `Planilla_pedido_${fechaStr}.xlsx`);
+
+    preguntarCompletarPedido();
+  }
+
+  // --- WHATSAPP ---
+  function generarTextoPedido() {
+    const hoy = new Date();
+    const fechaStr = hoy.toLocaleDateString('es-AR');
+
+    let texto = `*PEDIDO SEMANAL*\nFecha: ${fechaStr}\n\n`;
+    const grupos = {};
+    pedidoFinal.forEach(p => {
+      const key = p.categoria || "General";
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(p);
+    });
+
+    for (const [cat, prods] of Object.entries(grupos)) {
+      texto += `*${cat.toUpperCase()}*\n`;
+      prods.forEach(p => {
+        const habStr = p.habitacion && p.habitacion !== "General" ? ` [${p.habitacion}]` : '';
+        texto += `• ${p.nombre}${habStr}: ${p.cantidad} ${p.unidad || ''}\n`;
+      });
+      texto += `\n`;
+    }
+    return texto.trim();
+  }
+
+  function copiarTexto() {
+    if (pedidoFinal.length === 0) { alert("No hay productos para copiar."); return; }
+    const texto = generarTextoPedido();
+    navigator.clipboard.writeText(texto).then(() => {
+      alert("¡Pedido copiado al portapapeles!");
+    });
+    preguntarCompletarPedido();
+  }
+
+  function enviarWhatsAppModal() {
+    if (pedidoFinal.length === 0) { alert("No hay productos para enviar."); return; }
+    const telGuardado = localStorage.getItem("whatsapp_proveedor_tel") || "";
+    document.getElementById("inputNumeroWhatsApp").value = telGuardado;
+    document.getElementById("modalWhatsApp").style.display = "flex";
+  }
+
+  function cerrarModalWhatsApp() {
+    document.getElementById("modalWhatsApp").style.display = "none";
+  }
+
+  function confirmarEnviarWhatsApp() {
+    const num = document.getElementById("inputNumeroWhatsApp").value.replace(/[^0-9]/g, '');
+    if (num) localStorage.setItem("whatsapp_proveedor_tel", num);
+    const texto = encodeURIComponent(generarTextoPedido());
+    const url = num ? `https://wa.me/${num}?text=${texto}` : `https://wa.me/?text=${texto}`;
+    window.open(url, "_blank");
+    cerrarModalWhatsApp();
+    preguntarCompletarPedido();
+  }
+
+  function preguntarCompletarPedido() {
+    guardarEnHistorial(false);
+    setTimeout(() => {
+      if (confirm("¿Deseás archivar en el historial y reiniciar el pedido en Google Sheets para la próxima semana?")) {
+        vaciarPedidoEnGoogleSheets();
+        volverAlInicioRevision();
+      }
+    }, 600);
+  }
+
+  // --- HISTORIAL DE PEDIDOS ---
+  function guardarEnHistorial(notificar) {
+    if (pedidoFinal.length === 0) {
+      if (notificar) alert("No hay productos para guardar.");
+      return;
+    }
+
+    const hoy = new Date();
+    const fechaId = hoy.toISOString();
+    const fechaStr = hoy.toLocaleString('es-AR');
+
+    let totalUnidades = 0;
+    pedidoFinal.forEach(p => totalUnidades += p.cantidad);
+
+    historialPedidos.unshift({
+      id: fechaId,
+      fecha: fechaStr,
+      items: JSON.parse(JSON.stringify(pedidoFinal)),
+      totalItems: pedidoFinal.length,
+      totalUnidades: totalUnidades
+    });
+
+    if (historialPedidos.length > 50) historialPedidos.pop();
+
+    guardarHistorial();
+    actualizarEstadisticasBadge();
+    if (notificar) alert("¡Pedido guardado con éxito en tu historial!");
+  }
+
+  function renderizarHistorial() {
+    const cont = document.getElementById("contenedorHistorial");
+    if (historialPedidos.length === 0) {
+      cont.innerHTML = "<p style='color: var(--text-muted); font-style: italic;'>Aún no hay pedidos guardados en el historial.</p>";
+      return;
+    }
+
+    let html = "";
+    historialPedidos.forEach((h, idx) => {
+      html += `
+        <div class="card-box" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <strong>📅 ${h.fecha}</strong><br>
+            <small style="color: var(--text-muted);">${h.totalItems} productos diferentes (${h.totalUnidades || h.totalItems} unidades totales)</small>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-outline" style="font-size: 12px; padding: 5px 10px;" onclick="verDetalleHistorial(${idx})">👁️ Ver</button>
+            <button class="btn btn-outline" style="font-size: 12px; padding: 5px 10px;" onclick="cargarPedidoDeHistorial(${idx})">🔄 Reutilizar</button>
+            <button class="btn btn-danger" style="font-size: 12px; padding: 5px 8px;" onclick="eliminarPedidoHistorial(${idx})">🗑️</button>
+          </div>
+        </div>
+      `;
+    });
+    cont.innerHTML = html;
+  }
+
+  function verDetalleHistorial(idx) {
+    const h = historialPedidos[idx];
+    document.getElementById("tituloDetalleHistorial").innerText = `Pedido del ${h.fecha}`;
+    let html = `<table><tr><th>Categoría</th><th>Sector</th><th>Producto</th><th>Cant.</th></tr>`;
+    h.items.forEach(it => {
+      html += `<tr><td>${it.categoria}</td><td>📍 ${it.habitacion || 'General'}</td><td>${it.nombre}</td><td>${it.cantidad} ${it.unidad || ''}</td></tr>`;
+    });
+    html += `</table>`;
+    document.getElementById("cuerpoDetalleHistorial").innerHTML = html;
+    document.getElementById("modalDetalleHistorial").style.display = "flex";
+  }
+
+  function cerrarModalDetalle() {
+    document.getElementById("modalDetalleHistorial").style.display = "none";
+  }
+
+  function cargarPedidoDeHistorial(idx) {
+    if (confirm("¿Cargar los productos de este pedido en el pedido pendiente de Google Sheets?")) {
+      pedidoFinal = JSON.parse(JSON.stringify(historialPedidos[idx].items));
+      guardarPedidoEnGoogleSheets();
+      cambiarPestana('checklist');
+      finalizarRevisionDirecta();
+    }
+  }
+
+  function eliminarPedidoHistorial(idx) {
+    if (confirm("¿Eliminar este registro del historial?")) {
+      historialPedidos.splice(idx, 1);
+      guardarHistorial();
+      actualizarEstadisticasBadge();
+      renderizarHistorial();
+    }
+  }
+
+  // --- ESTADÍSTICAS ---
+  function renderizarEstadisticas() {
+    const cont = document.getElementById("contenedorEstadisticas");
+    if (historialPedidos.length === 0) {
+      cont.innerHTML = "<p style='color: var(--text-muted); font-style: italic;'>Las estadísticas se generarán automáticamente a medida que vayas guardando pedidos semanales.</p>";
+      return;
+    }
+
+    const conteoProductos = {};
+    let totalItemsPedidos = 0;
+
+    historialPedidos.forEach(h => {
+      h.items.forEach(it => {
+        totalItemsPedidos += it.cantidad;
+        if (!conteoProductos[it.nombre]) {
+          conteoProductos[it.nombre] = { veces: 0, cantidadTotal: 0, unidad: it.unidad, cat: it.categoria, hab: it.habitacion };
+        }
+        conteoProductos[it.nombre].veces += 1;
+        conteoProductos[it.nombre].cantidadTotal += it.cantidad;
+      });
+    });
+
+    const topProductos = Object.entries(conteoProductos)
+      .sort((a, b) => b.veces - a.veces)
+      .slice(0, 8);
+
+    let html = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+        <div class="card-box" style="text-align: center;">
+          <div style="font-size: 22px; font-weight: bold; color: var(--primary);">${historialPedidos.length}</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Pedidos registrados</div>
+        </div>
+        <div class="card-box" style="text-align: center;">
+          <div style="font-size: 22px; font-weight: bold; color: var(--success);">${totalItemsPedidos}</div>
+          <div style="font-size: 12px; color: var(--text-muted);">Unidades pedidas en total</div>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin-top:0;">🔥 Productos más pedidos (Top Rotación)</h3>
+        <table>
+          <tr><th>Producto</th><th>Frecuencia</th><th>Cant. Total</th></tr>
+          ${topProductos.map(([nombre, d]) => `
+            <tr>
+              <td>[${d.cat}] ${nombre} <small style="color:var(--text-muted);">(📍 ${d.hab || 'General'})</small></td>
+              <td>${d.veces} ${d.veces === 1 ? 'pedido' : 'pedidos'}</td>
+              <td>${d.cantidadTotal} ${d.unidad || ''}</td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+    `;
+
+    cont.innerHTML = html;
+  }
+
+  // --- SINCRONIZACIÓN DE CATÁLOGO DESDE GOOGLE SHEETS ---
+  async function sincronizarDesdeGoogleSheets(notificar = false) {
+    const URL_CON_CACHE = `${URL_GOOGLE_SHEETS_CSV}&_t=${Date.now()}`;
+    const URL_A_CONSULTAR = (location.protocol === "file:")
+      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(URL_CON_CACHE)}`
+      : URL_CON_CACHE;
+
+    try {
+      let respuesta = await fetch(URL_A_CONSULTAR);
+      if (!respuesta.ok && location.protocol !== "file:") {
+        respuesta = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(URL_CON_CACHE)}`);
+      }
+
+      if (!respuesta.ok) throw new Error("No se pudo descargar la planilla.");
+
+      const textoCSV = await respuesta.text();
+      const workbook = XLSX.read(textoCSV, { type: 'string' });
+      const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(primeraHoja, { header: 1 });
+
+      if (filas.length < 2) return;
+
+      const limpiarTexto = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      const headers = filas[0].map(limpiarTexto);
+
+      const colProd = headers.findIndex(h => h.includes("producto") || h.includes("nombre") || h.includes("articulo"));
+      const colCat = headers.findIndex(h => h.includes("categoria") || h.includes("cat") || h.includes("rubro"));
+      const colSector = headers.findIndex(h => h.includes("sector") || h.includes("habitacion") || h.includes("ubicacion") || h.includes("lugar"));
+      const colCant = headers.findIndex(h => h.includes("cantidad") || h.includes("habitual") || h.includes("cant") || h.includes("stock"));
+      const colUnidad = headers.findIndex(h => h.includes("unidad") || h.includes("presentacion"));
+      const colCodigo = headers.findIndex(h => h.includes("cod") || h.includes("barra") || h.includes("ean"));
+
+      if (colProd === -1) return;
+
+      const nuevoCatalogo = [];
+      for (let i = 1; i < filas.length; i++) {
+        const row = filas[i];
+        const nombre = String(row[colProd] || "").trim();
+        if (!nombre) continue;
+
+        const cat = colCat !== -1 && row[colCat] ? String(row[colCat]).trim() : "General";
+        const sector = colSector !== -1 && row[colSector] ? String(row[colSector]).trim() : "General";
+        const cant = colCant !== -1 && parseInt(row[colCant]) ? parseInt(row[colCant]) : 1;
+        const unidad = colUnidad !== -1 && row[colUnidad] ? String(row[colUnidad]).trim() : "Unidades";
+        const codigo = colCodigo !== -1 && row[colCodigo] ? String(row[colCodigo]).trim() : "";
+
+        nuevoCatalogo.push({
+          id: Date.now() + i,
+          nombre: nombre,
+          categoria: cat,
+          habitacion: sector,
+          cantidadDefault: cant,
+          unidad: unidad,
+          codigo: codigo,
+          favorito: !!favoritosLocales[nombre]
+        });
+      }
+
+      if (nuevoCatalogo.length > 0) {
+        catalogo = nuevoCatalogo;
+        guardarTodo();
+        if (notificar) alert(`✓ Planilla sincronizada con éxito (${nuevoCatalogo.length} productos).`);
+      }
+    } catch (error) {
+      console.warn("Aviso al sincronizar con Google Sheets:", error.message);
+    }
+  }
+
+  // --- ESCÁNER DE CÓDIGO DE BARRAS ---
+  function abrirEscanerCamara() {
+    document.getElementById("modalEscaner").style.display = "flex";
+    document.getElementById("resultadoEscaner").innerText = "Iniciando cámara...";
+
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode("qr-reader");
+    }
+
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      (decodedText) => {
+        document.getElementById("resultadoEscaner").innerText = `Código detectado: ${decodedText}`;
+        procesarCodigoEscaneado(decodedText);
+        cerrarEscanerCamara();
+      },
+      (error) => { /* ignorar frames sin código */ }
+    ).catch(err => {
+      document.getElementById("resultadoEscaner").innerText = "No se pudo acceder a la cámara. Verificá los permisos.";
+    });
+  }
+
+  function cerrarEscanerCamara() {
+    if (html5QrCode && html5QrCode.isScanning) {
+      html5QrCode.stop().then(() => {
+        document.getElementById("modalEscaner").style.display = "none";
+      }).catch(() => {
+        document.getElementById("modalEscaner").style.display = "none";
+      });
+    } else {
+      document.getElementById("modalEscaner").style.display = "none";
+    }
+  }
+
+  function procesarCodigoEscaneado(codigo) {
+    const prod = catalogo.find(p => p.codigo === codigo);
+    if (prod) {
+      const cant = prompt(`Producto encontrado: [${prod.categoria} | 📍 ${prod.habitacion || 'General'}] ${prod.nombre}\n\nIngresá la cantidad a pedir:`, prod.cantidadDefault);
+      if (cant !== null) {
+        const cantNum = parseInt(cant) || prod.cantidadDefault;
+        const existente = pedidoFinal.find(p => p.nombre === prod.nombre);
+        if (existente) existente.cantidad = cantNum;
+        else pedidoFinal.push({ nombre: prod.nombre, categoria: prod.categoria, habitacion: prod.habitacion || "General", cantidad: cantNum, unidad: prod.unidad });
+        
+        guardarPedidoEnGoogleSheets();
+        cambiarPestana('checklist');
+        finalizarRevisionDirecta();
+        alert(`¡Agregado al pedido: ${prod.nombre} (${cantNum} ${prod.unidad})!`);
+      }
+    } else {
+      alert(`El código "${codigo}" no coincide con ningún producto de tu planilla.`);
+    }
+  }
+
+  // --- INICIALIZACIÓN ---
+  inicializarTema();
+  actualizarEstadisticasBadge();
+  actualizarSelectoresHabitacion();
+  actualizarSelectorAlcance();
+  renderizarConfigColores();
+  renderizarCatalogo();
+  actualizarBadgesBorrador();
+
+  // 1. Cargar catálogo desde Google Sheets
+  sincronizarDesdeGoogleSheets();
+  // 2. Cargar pedido pendiente en vivo desde Google Sheets
+  sincronizarPedidoPendienteDesdeNube();
+</script>
+
+</body>
+</html>
